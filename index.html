@@ -8,8 +8,6 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- 1. REMOVE all Firebase scripts -->
-  <!-- 2. ADD the Supabase-js script -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,10 +26,8 @@
     const EDITOR_EMAILS = [
       "cody@oregontaxi.com",
       "ktaylor@oregontaxi.com"
-    ];
-    // --- ⬆️ ⬆️ END EDITOR EMAILS ⬆️ ⬆️ ---
+    ];    // --- ⬆️ ⬆️ END EDITOR EMAILS ⬆️ ⬆️ ---
 
-    // 3. Initialize the Supabase client
     let supabaseClient;
     try {
       if (SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== "YOUR_SUPABASE_URL") {
@@ -60,7 +56,6 @@
     const Trash2 = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
     const Calendar = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
     const LogOut = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
-    // --- NEW: Arrow for back button ---
     const ArrowLeft = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
     
     
@@ -243,8 +238,10 @@
       const [showResetModal, setShowResetModal] = useState(false);
       const [isResetting, setIsResetting] = useState(false);
       
-      // --- NEW: State for mobile view ---
-      const [mobileView, setMobileView] = useState('list'); // 'list' or 'details'
+      const [mobileView, setMobileView] = useState('list');
+
+      // --- NEW: State for Add Trip Modal ---
+      const [showAddTripModal, setShowAddTripModal] = useState(false);
 
       // State for adding trips
       const [newTripDate, setNewTripDate] = useState("");
@@ -272,9 +269,9 @@
 
       const ORGS = [
         "All",
-        "RCO (ACCT 542)",
-        "LANE_COUNTY (ACCT 671)",
-        "FULL_ACCESS (ACCT 202)"
+        "542",
+        "671",
+        "202"
       ];
       
       useEffect(() => {
@@ -343,7 +340,6 @@
                   newAllClients.set(payload.new.id, payload.new);
                 } else if (payload.eventType === 'DELETE') {
                   newAllClients.delete(payload.old.id);
-                  // --- NEW: If deleted client was selected, go back to list ---
                   if (selectedClientId === payload.old.id) {
                     setSelectedClientId(null);
                     setMobileView('list');
@@ -367,6 +363,20 @@
           filterAndSetClients(allClients);
         }
       }, [selectedOrg, searchTerm, allClients, isLoadingClients]);
+      
+      // --- NEW: Reset forms when client changes ---
+      useEffect(() => {
+        if (!selectedClientId) {
+          // Clear all forms
+          setNewTripDate("");
+          setNewTripAmount("");
+          setAddTripError(null);
+          setEditingTripId(null);
+          setNewBudgetMonth("");
+          setNewBudgetAmount("");
+          setAddBudgetError(null);
+        }
+      }, [selectedClientId]);
 
       const selectedClient = useMemo(() => {
         if (!selectedClientId) return null;
@@ -519,11 +529,15 @@
         setIsResetting(true);
         setSeedError(null);
         try {
-          const { error } = await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          const { error } = await supabase.rpc('delete_all_clients');
           
           if (error) throw error;
           
-          setIsSeeded(false);
+          const { data: checkData } = await supabase.from('clients').select('id').limit(1);
+          if (checkData && checkData.length === 0) {
+             setIsSeeded(false);
+          }
+
           setAllClients(new Map());
           setClients([]);
           setSelectedClientId(null);
@@ -568,6 +582,7 @@
 
           setNewTripDate("");
           setNewTripAmount("");
+          setShowAddTripModal(false); // --- NEW: Close modal on success ---
         
         } catch (error) {
           console.error("Error adding trip:", error);
@@ -722,6 +737,10 @@
         setEditingClientName("");
         setEditingBudgetEndDate("");
         setUpdateClientError(null);
+        // --- NEW: Clear budget form on close ---
+        setNewBudgetMonth("");
+        setNewBudgetAmount("");
+        setAddBudgetError(null);
       };
       
       const handleUpdateClient = async (e) => {
@@ -818,9 +837,7 @@
 
       const renderDashboard = () => (
         <>
-        {/* --- UPDATED: Responsive main container --- */}
         <div className="flex flex-col md:flex-row md:h-screen min-h-screen bg-gray-100">
-          {/* --- UPDATED: Sidebar hidden on mobile when viewing details --- */}
           <aside className={`w-full md:max-w-md border-r border-gray-200 bg-white flex flex-col ${
             mobileView === 'list' ? 'flex' : 'hidden'
           } md:flex`}>
@@ -895,7 +912,7 @@
                       <button
                         onClick={() => {
                           setSelectedClientId(client.id);
-                          setMobileView('details'); // --- NEW: Switch view on mobile ---
+                          setMobileView('details');
                         }}
                         className={`w-full text-left p-4 border-b border-gray-100 hover:bg-blue-50 focus:outline-none focus:bg-blue-100 transition-colors ${
                           selectedClientId === client.id
@@ -913,13 +930,11 @@
             </div>
           </aside>
 
-          {/* --- UPDATED: Main content hidden on mobile when viewing list --- */}
           <main className={`flex-1 flex flex-col ${
             mobileView === 'details' ? 'flex' : 'hidden'
           } md:flex`}>
             {selectedClientId && selectedClient ? (
               <>
-                {/* --- NEW: Back button for mobile --- */}
                 <div className="p-4 md:hidden border-b border-gray-200 bg-white shadow-sm sticky top-0 z-10">
                   <button
                     onClick={() => {
@@ -995,176 +1010,29 @@
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
                   
-                  {isEditor && (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                      <h3 className="text-lg font-semibold text-gray-800 p-4 border-b border-gray-200">
-                        Add New Trip
-                      </h3>
-                      <form onSubmit={handleAddTrip} className="p-4 space-y-4">
-                        {addTripError && (
-                          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm" role="alert">
-                            <p>{addTripError}</p>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="md:col-span-1">
-                            <label htmlFor="trip-date" className="block text-sm font-medium text-gray-700 mb-1">
-                              Trip Date
-                            </label>
-                            <input
-                              type="date"
-                              id="trip-date"
-                              value={newTripDate}
-                              onChange={(e) => setNewTripDate(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isAddingTrip}
-                            />
-                          </div>
-                          <div className="md:col-span-1">
-                            <label htmlFor="trip-amount" className="block text-sm font-medium text-gray-700 mb-1">
-                              Fare Amount ($)
-                            </label>
-                            <input
-                              type="number"
-                              id="trip-amount"
-                              placeholder="e.g., 12.50"
-                              step="0.01"
-                              min="0"
-                              value={newTripAmount}
-                              onChange={(e) => setNewTripAmount(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isAddingTrip}
-                            />
-                          </div>
-                          <div className="md:col-span-1 flex items-end">
-                            <button
-                              type="submit"
-                              disabled={isAddingTrip || !newTripDate || !newTripAmount}
-                              className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            >
-                              {isAddingTrip ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : (
-                                <>
-                                  <Plus className="w-5 h-5" />
-                                  <span className="ml-2">Add Trip</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-                  
-                  {isEditor && (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                      <h3 className="text-lg font-semibold text-gray-800 p-4 border-b border-gray-200">
-                        Manage Monthly Budgets
-                      </h3>
-                      <form onSubmit={handleSetBudget} className="p-4 space-y-4 border-b border-gray-200">
-                        {addBudgetError && (
-                          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm" role="alert">
-                            <p>{addBudgetError}</p>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="md:col-span-1">
-                            <label htmlFor="budget-month" className="block text-sm font-medium text-gray-700 mb-1">
-                              Month
-                            </label>
-                            <input
-                              type="month"
-                              id="budget-month"
-                              value={newBudgetMonth}
-                              onChange={(e) => setNewBudgetMonth(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isAddingBudget}
-                            />
-                          </div>
-                          <div className="md:col-span-1">
-                            <label htmlFor="budget-amount" className="block text-sm font-medium text-gray-700 mb-1">
-                              Budget Amount ($)
-                            </label>
-                            <input
-                              type="number"
-                              id="budget-amount"
-                              placeholder="e.g., 200.00"
-                              step="0.01"
-                              min="0"
-                              value={newBudgetAmount}
-                              onChange={(e) => setNewBudgetAmount(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                              disabled={isAddingBudget}
-                            />
-                          </div>
-                          <div className="md:col-span-1 flex items-end">
-                            <button
-                              type="submit"
-                              disabled={isAddingBudget || !newBudgetMonth || !newBudgetAmount}
-                              className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg font-semibold shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            >
-                              {isAddingBudget ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : (
-                                <>
-                                  <Calendar className="w-5 h-5" />
-                                  <span className="ml-2">Set/Update Budget</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </form>
-                      
-                      {/* --- UPDATED: Responsive table container --- */}
-                      <div className="p-4 overflow-x-auto">
-                        <h4 className="text-md font-semibold text-gray-700 mb-2">Existing Budgets</h4>
-                        {sortedBudgets.length > 0 ? (
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Limit</th>
-                                {isEditor && <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>}
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {sortedBudgets.map((budget) => (
-                                <tr key={budget.id}>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 font-medium">{budget.id}</td>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{formatCurrency(budget.limit)}</td>
-                                  {isEditor && (
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-right">
-                                      <button
-                                        onClick={() => handleDeleteBudget(budget.id)}
-                                        className="text-red-600 hover:text-red-800 p-1"
-                                        title="Delete budget"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </td>
-                                  )}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-gray-500 text-sm">No monthly budgets set.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {/* --- "ADD TRIP" and "MANAGE BUDGETS" FORMS REMOVED FROM HERE --- */}
 
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                    Trip History
-                  </h3>
+                  {/* --- NEW: "Add Trip" button next to heading --- */}
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-gray-800">
+                      Trip History
+                    </h3>
+                    {isEditor && (
+                      <button
+                        onClick={() => setShowAddTripModal(true)}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200"
+                      >
+                        <Plus className="w-5 h-5" />
+                        <span className="ml-2">Add Trip</span>
+                      </button>
+                    )}
+                  </div>
+
                   {isLoadingClients ? (
                     <div className="flex items-center justify-center h-full">
                       <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                     </div>
                   ) : trips.length > 0 ? (
-                    // --- UPDATED: Responsive table container ---
                     <div className="bg-white rounded-lg shadow-md overflow-hidden overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -1228,7 +1096,6 @@
                 )}
               </>
             ) : (
-              // --- UPDATED: Placeholder hidden on mobile ---
               <div className="hidden md:flex flex-1 items-center justify-center">
                 <div className="text-center">
                   <Users className="w-24 h-24 text-gray-300 mx-auto" />
@@ -1261,6 +1128,20 @@
           />
         )}
         
+        {/* --- NEW: Add Trip Modal --- */}
+        {showAddTripModal && isEditor && (
+          <AddTripModal
+            onClose={() => setShowAddTripModal(false)}
+            onConfirm={handleAddTrip}
+            tripDate={newTripDate}
+            setTripDate={setNewTripDate}
+            tripAmount={newTripAmount}
+            setTripAmount={setNewTripAmount}
+            isAdding={isAddingTrip}
+            error={addTripError}
+          />
+        )}
+        
         {editingTripId && isEditor && (
           <EditTripModal
             onClose={handleCancelEdit}
@@ -1284,6 +1165,16 @@
             setBudgetEndDate={setEditingBudgetEndDate}
             isUpdating={isUpdatingClient}
             error={updateClientError}
+            // --- NEW: Pass budget props into Edit Client Modal ---
+            sortedBudgets={sortedBudgets}
+            handleSetBudget={handleSetBudget}
+            handleDeleteBudget={handleDeleteBudget}
+            newBudgetMonth={newBudgetMonth}
+            setNewBudgetMonth={setNewBudgetMonth}
+            newBudgetAmount={newBudgetAmount}
+            setNewBudgetAmount={setNewBudgetAmount}
+            isAddingBudget={isAddingBudget}
+            addBudgetError={addBudgetError}
           />
         )}
         </>
@@ -1292,7 +1183,7 @@
       return isSeeded ? renderDashboard() : renderSeed();
     }
 
-    // --- All Modal and Helper Components (No Changes) ---
+    // --- All Modal and Helper Components ---
 
     const StatCard = ({ title, value, icon, isCurrency, isWarning }) => (
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -1401,6 +1292,92 @@
       </div>
     );
 
+    // --- NEW: Add Trip Modal ---
+    const AddTripModal = ({ onClose, onConfirm, tripDate, setTripDate, tripAmount, setTripAmount, isAdding, error }) => (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 z-50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-bold text-gray-800">
+              Add New Trip
+            </h3>
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <form onSubmit={onConfirm} className="space-y-4">
+            {error && (
+              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm" role="alert">
+                <p>{error}</p>
+              </div>
+            )}
+            <div>
+              <label htmlFor="trip-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Trip Date
+              </label>
+              <input
+                type="date"
+                id="trip-date"
+                value={tripDate}
+                onChange={(e) => setTripDate(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                disabled={isAdding}
+              />
+            </div>
+            <div>
+              <label htmlFor="trip-amount" className="block text-sm font-medium text-gray-700 mb-1">
+                Fare Amount ($)
+              </label>
+              <input
+                type="number"
+                id="trip-amount"
+                placeholder="e.g., 12.50"
+                step="0.01"
+                min="0"
+                value={tripAmount}
+                onChange={(e) => setTripAmount(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                disabled={isAdding}
+              />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isAdding}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isAdding || !tripDate || !tripAmount}
+                className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isAdding ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5" />
+                    <span className="ml-2">Add Trip</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+
     const EditTripModal = ({ onClose, onConfirm, tripDate, setTripDate, tripAmount, setTripAmount, isUpdating, error }) => (
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
@@ -1483,13 +1460,19 @@
       </div>
     );
     
-    const EditClientModal = ({ onClose, onConfirm, clientName, setClientName, budgetEndDate, setBudgetEndDate, isUpdating, error }) => (
+    // --- UPDATED: EditClientModal now contains budget management ---
+    const EditClientModal = ({ 
+      onClose, onConfirm, clientName, setClientName, budgetEndDate, setBudgetEndDate, isUpdating, error,
+      sortedBudgets, handleSetBudget, handleDeleteBudget, newBudgetMonth, setNewBudgetMonth,
+      newBudgetAmount, setNewBudgetAmount, isAddingBudget, addBudgetError
+    }) => (
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
         onClick={onClose}
       >
+        {/* --- UPDATED: Wider modal --- */}
         <div 
-          className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 z-50"
+          className="bg-white rounded-lg shadow-2xl max-w-3xl w-full p-6 z-50 max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
@@ -1537,7 +1520,6 @@
               />
               <p className="text-xs text-gray-500 mt-1">
                 Set this to the *last month* the client should have a budget (e.g., 2025-10).
-                Any month *after* this will have a $0 budget. Clear to remove.
               </p>
             </div>
             <div className="flex justify-end space-x-3 pt-4">
@@ -1562,6 +1544,105 @@
               </button>
             </div>
           </form>
+          
+          {/* --- NEW: Budget Management section added to modal --- */}
+          <hr className="my-6" />
+          
+          <div className="bg-white rounded-lg overflow-hidden">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">
+              Manage Monthly Budgets
+            </h3>
+            <form onSubmit={handleSetBudget} className="p-4 space-y-4 border rounded-lg border-gray-200">
+              {addBudgetError && (
+                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm" role="alert">
+                  <p>{addBudgetError}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <label htmlFor="budget-month" className="block text-sm font-medium text-gray-700 mb-1">
+                    Month
+                  </label>
+                  <input
+                    type="month"
+                    id="budget-month"
+                    value={newBudgetMonth}
+                    onChange={(e) => setNewBudgetMonth(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isAddingBudget}
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <label htmlFor="budget-amount" className="block text-sm font-medium text-gray-700 mb-1">
+                    Budget Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    id="budget-amount"
+                    placeholder="e.g., 200.00"
+                    step="0.01"
+                    min="0"
+                    value={newBudgetAmount}
+                    onChange={(e) => setNewBudgetAmount(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isAddingBudget}
+                  />
+                </div>
+                <div className="md:col-span-1 flex items-end">
+                  <button
+                    type="submit"
+                    disabled={isAddingBudget || !newBudgetMonth || !newBudgetAmount}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg font-semibold shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {isAddingBudget ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Calendar className="w-5 h-5" />
+                        <span className="ml-2">Set/Update Budget</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+            
+            <div className="p-4 overflow-x-auto">
+              <h4 className="text-md font-semibold text-gray-700 mb-2">Existing Budgets</h4>
+              {sortedBudgets.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Limit</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedBudgets.map((budget) => (
+                      <tr key={budget.id}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 font-medium">{budget.id}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{formatCurrency(budget.limit)}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right">
+                          <button
+                            onClick={() => handleDeleteBudget(budget.id)}
+                            className="text-red-600 hover:text-red-800 p-1"
+                            title="Delete budget"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-sm">No monthly budgets set.</p>
+              )}
+            </div>
+          </div>
+          {/* --- END: Budget Management section --- */}
+          
         </div>
       </div>
     );
@@ -1624,13 +1705,13 @@
 
     function getOrgFromFile(fileName) {
       if (fileName.includes('671') || fileName.toLowerCase().includes('lane county')) {
-        return "LANE_COUNTY (ACCT 671)";
+        return "671";
       }
       if (fileName.includes('202') || fileName.toLowerCase().includes('full access')) {
-        return "FULL_ACCESS (ACCT 202)";
+        return "202";
       }
       if (fileName.includes('542') || fileName.toLowerCase().includes('rco')) {
-        return "RCO (ACCT 542)";
+        return "542";
       }
       return "Unknown";
     }
