@@ -23,8 +23,20 @@
         body { font-family: 'Inter', sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
-        .accordion-content.open { max-height: 2000px; opacity: 1; }
+        
+        /* Accordion Animation */
+        .accordion-content {
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .accordion-content.open {
+            max-height: 2000px; /* Arbitrary large height for expansion */
+            opacity: 1;
+        }
+        
+        /* Card Click Feedback */
         .account-card { transition: all 0.2s ease-in-out; }
         .account-card:active { transform: scale(0.98); }
     </style>
@@ -46,7 +58,7 @@
             </form>
             <div class="mt-6 pt-6 border-t border-slate-100 text-center">
                 <p class="text-xs text-slate-400">Admin Access: <span class="font-mono text-slate-600">admin</span> / <span class="font-mono text-slate-600">admin</span></p>
-                <div id="system-status" class="mt-2 text-[10px] font-medium text-amber-500 flex items-center justify-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div><span>Connecting...</span></div>
+                <div id="system-status" class="mt-2 text-[10px] font-medium text-amber-500 flex items-center justify-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div><span>Connecting to database...</span></div>
             </div>
             <div id="login-error" class="hidden mt-4 p-3 bg-rose-50 text-rose-600 text-xs rounded-lg text-center font-medium border border-rose-100"></div>
         </div>
@@ -102,7 +114,7 @@
         </div>
 
         <div id="sidebar-list-container" class="flex-1 overflow-y-auto scrollbar-hide px-3 py-2">
-            <div class="flex items-center justify-between px-2 mb-2"><h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Accounts Breakdown</h3><span id="client-count" class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">0</span></div>
+            <div class="flex items-center justify-between px-2 mb-2"><h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clients</h3><span id="client-count" class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">0</span></div>
             <div id="account-list" class="space-y-1 pb-4"><div class="px-2 text-sm text-slate-400 italic text-center mt-10">Loading...</div></div>
         </div>
 
@@ -238,7 +250,7 @@
         onAuthStateChanged(auth, (user) => { state.firebaseUser = user; if (user) setupDataListener(); else els.systemStatus.innerHTML = '<span class="text-rose-500">Disconnected</span>'; });
 
         function setupDataListener() {
-            // *** CHANGED TO PUBLIC DATA PATH ***
+            // *** UPDATED TO PUBLIC PATH ***
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'accounts'));
             onSnapshot(q, (snapshot) => {
                 const accounts = [];
@@ -413,14 +425,18 @@
                 state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { type: 'bar', indexAxis: 'y', data: { labels: cSpends.slice(0,5).map(c=>c.name), datasets: [{ data: cSpends.slice(0,5).map(c=>c.amount), backgroundColor: '#6366f1' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
 
                 allTxs.sort((a,b)=>new Date(b.date)-new Date(a.date));
-                els.recentActivityList.innerHTML = allTxs.slice(0,5).map(tx => `
-                    <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                        <div class="flex items-center space-x-3 overflow-hidden">
-                            <div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">${getInitials(tx.client)}</div>
-                            <div class="min-w-0"><div class="text-xs font-semibold text-slate-700 truncate">${tx.client}</div><div class="text-[10px] text-slate-400 truncate">${(!tx.description || tx.description==='undefined') ? 'No Description' : tx.description}</div></div>
-                        </div>
-                        <div class="text-xs font-bold text-slate-800">${formatCurrency(cleanAmount(tx.amount))}</div>
-                    </div>`).join('');
+                if (allTxs.length === 0) {
+                    els.recentActivityList.innerHTML = '<div class="text-center text-sm text-slate-400 italic p-4">No recent transactions found.</div>';
+                } else {
+                    els.recentActivityList.innerHTML = allTxs.slice(0,5).map(tx => `
+                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                            <div class="flex items-center space-x-3 overflow-hidden">
+                                <div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">${getInitials(tx.client)}</div>
+                                <div class="min-w-0"><div class="text-xs font-semibold text-slate-700 truncate">${tx.client}</div><div class="text-[10px] text-slate-400 truncate">${(!tx.description || tx.description==='undefined') ? 'No Description' : tx.description}</div></div>
+                            </div>
+                            <div class="text-xs font-bold text-slate-800">${formatCurrency(cleanAmount(tx.amount))}</div>
+                        </div>`).join('');
+                }
 
                 const grp = targetAccounts.reduce((g, acc) => { const id=acc.accountId||'U'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {});
                 Object.keys(grp).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(gid => {
