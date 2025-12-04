@@ -5,18 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Budget Tracker Portal</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
-    <!-- Chart.js & Plugins -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -32,163 +28,307 @@
             overflow: hidden;
         }
         .accordion-content.open {
-            max-height: 2000px; /* Arbitrary large height for expansion */
+            max-height: 2000px;
             opacity: 1;
         }
         
         /* Card Click Feedback */
-        .account-card { transition: all 0.2s ease-in-out; }
-        .account-card:active { transform: scale(0.98); }
+        .account-card { transition: all 0.1s ease-in-out; }
+        .account-card:active { transform: scale(0.99); background-color: #f9fafb; }
+
+        /* Calendar Heatmap Styles (Grayscale) */
+        .heatmap-scroll { overflow-x: auto; padding-bottom: 10px; }
+        .heatmap-grid {
+            display: inline-grid;
+            grid-template-rows: repeat(7, 14px);
+            grid-auto-flow: column;
+            gap: 4px;
+        }
+        .day-cell {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            background-color: #f3f4f6; /* gray-100 */
+            transition: all 0.1s ease;
+        }
+        .day-cell:hover { border: 1px solid #000; }
+        
+        /* Intensity Levels (Black & White) */
+        .level-0 { background-color: #f3f4f6; } /* Empty */
+        .level-1 { background-color: #d1d5db; } /* gray-300 */
+        .level-2 { background-color: #9ca3af; } /* gray-400 */
+        .level-3 { background-color: #4b5563; } /* gray-600 */
+        .level-4 { background-color: #000000; } /* Black */
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 h-screen flex overflow-hidden">
+<body class="bg-white text-black h-screen flex overflow-hidden">
 
-    <!-- AUTH LAYER -->
-    <div id="auth-layer" class="fixed inset-0 z-[100] bg-slate-100 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div id="login-card" class="bg-white w-full max-w-md p-8 rounded-2xl shadow-xl border border-slate-200">
+    <div id="auth-layer" class="fixed inset-0 z-[100] bg-white flex items-center justify-center p-4 transition-opacity duration-300">
+        <div id="login-card" class="bg-white w-full max-w-md p-8 rounded-lg border border-black">
             <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 mb-4"><i class="ph-fill ph-lock-key text-2xl"></i></div>
-                <h2 class="text-2xl font-bold text-slate-900">Budget Portal</h2>
-                <p class="text-sm text-slate-500 mt-2">Secure Client Access</p>
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-black text-white mb-4"><i class="ph-fill ph-lock-key text-2xl"></i></div>
+                <h2 class="text-2xl font-bold text-black">Budget Portal</h2>
+                <p class="text-sm text-gray-500 mt-2">Secure Client Access</p>
             </div>
             <form id="login-form" class="space-y-6">
-                <div><label class="block text-sm font-medium text-slate-700 mb-1">Username</label><input type="text" id="login-username" class="w-full rounded-lg border-slate-300 border p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 transition-all" placeholder="firstname.lastname" required></div>
-                <div><label class="block text-sm font-medium text-slate-700 mb-1">Password</label><input type="password" id="login-password" class="w-full rounded-lg border-slate-300 border p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 transition-all" placeholder="••••••••" required></div>
-                <button type="submit" id="login-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-sm disabled:opacity-50 flex justify-center items-center"><span>Sign In</span></button>
+                <div><label class="block text-sm font-bold text-black mb-1">Username</label><input type="text" id="login-username" class="w-full rounded-md border-gray-300 border p-2.5 text-sm focus:ring-0 focus:border-black transition-all" placeholder="firstname.lastname" required></div>
+                <div><label class="block text-sm font-bold text-black mb-1">Password</label><input type="password" id="login-password" class="w-full rounded-md border-gray-300 border p-2.5 text-sm focus:ring-0 focus:border-black transition-all" placeholder="••••••••" required></div>
+                <button type="submit" id="login-btn" class="w-full bg-black hover:bg-gray-800 text-white font-medium py-2.5 rounded-md transition-colors flex justify-center items-center"><span>Sign In</span></button>
             </form>
-            <div class="mt-6 pt-6 border-t border-slate-100 text-center">
-                <p class="text-xs text-slate-400">Admin Access: <span class="font-mono text-slate-600">admin</span> / <span class="font-mono text-slate-600">admin</span></p>
-                <div id="system-status" class="mt-2 text-[10px] font-medium text-amber-500 flex items-center justify-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div><span>Connecting to database...</span></div>
+            <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                <p class="text-xs text-gray-400">Admin Access: <span class="font-mono text-black">admin</span> / <span class="font-mono text-black">admin</span></p>
+                <div id="system-status" class="mt-2 text-[10px] font-medium text-gray-500 flex items-center justify-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse"></div><span>Connecting...</span></div>
             </div>
-            <div id="login-error" class="hidden mt-4 p-3 bg-rose-50 text-rose-600 text-xs rounded-lg text-center font-medium border border-rose-100"></div>
+            <div id="login-error" class="hidden mt-4 p-3 bg-gray-50 text-black text-xs rounded border border-black text-center font-medium"></div>
         </div>
-        <div id="change-pass-card" class="hidden bg-white w-full max-w-md p-8 rounded-2xl shadow-xl border border-slate-200">
-            <div class="text-center mb-6"><h2 class="text-xl font-bold text-slate-900">Update Password</h2><p class="text-sm text-slate-500 mt-2">Please set a new secure password.</p></div>
+        <div id="change-pass-card" class="hidden bg-white w-full max-w-md p-8 rounded-lg border border-black">
+            <div class="text-center mb-6"><h2 class="text-xl font-bold text-black">Update Password</h2><p class="text-sm text-gray-500 mt-2">Please set a new secure password.</p></div>
             <form id="change-pass-form" class="space-y-6">
-                <div><label class="block text-sm font-medium text-slate-700 mb-1">New Password</label><input type="password" id="new-password" class="w-full rounded-lg border-slate-300 border p-2.5 text-sm" required></div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg">Update & Login</button>
+                <div><label class="block text-sm font-bold text-black mb-1">New Password</label><input type="password" id="new-password" class="w-full rounded-md border-gray-300 border p-2.5 text-sm focus:border-black focus:ring-0" required></div>
+                <button type="submit" class="w-full bg-black hover:bg-gray-800 text-white font-medium py-2.5 rounded-md">Update & Login</button>
             </form>
         </div>
     </div>
 
-    <!-- TRANSACTION MODAL -->
     <div id="tx-modal" class="fixed inset-0 z-[60] hidden">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left border border-black transition-all sm:my-8 sm:w-full sm:max-w-lg shadow-none">
                     <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                         <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10"><i class="ph-bold ph-plus text-indigo-600 text-xl"></i></div>
+                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 sm:mx-0 sm:h-10 sm:w-10"><i class="ph-bold ph-receipt text-black text-xl"></i></div>
                             <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                <h3 class="text-base font-semibold leading-6 text-gray-900">Log New Trip / Expense</h3>
+                                <h3 class="text-base font-bold leading-6 text-black">Log New Transaction</h3>
                                 <div class="mt-4 space-y-4">
-                                    <div><label class="block text-sm font-medium text-slate-700">Date</label><input type="date" id="modal-date" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm border p-2"></div>
-                                    <div><label class="block text-sm font-medium text-slate-700">Description</label><input type="text" id="modal-desc" placeholder="e.g. Uber, Dinner" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm border p-2"></div>
-                                    <div><label class="block text-sm font-medium text-slate-700">Amount ($)</label><input type="number" id="modal-amount" step="0.01" placeholder="0.00" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm border p-2"></div>
+                                    <div><label class="block text-sm font-medium text-gray-700">Date</label><input type="date" id="modal-date" class="mt-1 block w-full rounded-md border-gray-300 border p-2 focus:border-black focus:ring-0"></div>
+                                    <div><label class="block text-sm font-medium text-gray-700">Description</label><input type="text" id="modal-desc" placeholder="e.g. Uber, Dinner" class="mt-1 block w-full rounded-md border-gray-300 border p-2 focus:border-black focus:ring-0"></div>
+                                    <div><label class="block text-sm font-medium text-gray-700">Amount ($)</label><input type="number" id="modal-amount" step="0.01" placeholder="0.00" class="mt-1 block w-full rounded-md border-gray-300 border p-2 focus:border-black focus:ring-0"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-slate-100">
-                        <button type="button" id="save-tx-btn" class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">Save</button>
-                        <button type="button" id="close-modal-btn" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Cancel</button>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
+                        <button type="button" id="save-tx-btn" class="inline-flex w-full justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800 sm:ml-3 sm:w-auto">Save</button>
+                        <button type="button" id="close-modal-btn" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-black ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Cancel</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SIDEBAR -->
-    <aside id="sidebar" class="hidden fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 transform -translate-x-full transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 flex flex-col shadow-xl lg:shadow-none">
-        <button onclick="window.resetToOverview()" class="flex items-center justify-between h-16 px-6 border-b border-slate-100 flex-shrink-0 hover:bg-slate-50 transition-colors w-full text-left">
-            <div class="flex items-center space-x-2 text-indigo-600"><i class="ph-fill ph-wallet text-2xl"></i><span class="font-bold text-lg tracking-tight">Balances</span></div>
-            <i class="ph ph-house text-slate-400 hover:text-indigo-600 hidden lg:block"></i>
-        </button>
-        <button id="close-sidebar" class="absolute top-4 right-4 lg:hidden text-slate-400 hover:text-slate-600"><i class="ph ph-x text-xl"></i></button>
+    <div id="settings-modal" class="fixed inset-0 z-[70] hidden">
+        <div class="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left border border-black transition-all sm:my-8 sm:w-full sm:max-w-lg shadow-none">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-black text-white sm:mx-0 sm:h-10 sm:w-10"><i class="ph-bold ph-sliders text-xl"></i></div>
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-bold leading-6 text-black">Manage Budget Settings</h3>
+                                <p class="text-xs text-gray-500 mt-1">Adjust limits or extend duration.</p>
+                                
+                                <div class="mt-6 border-t border-gray-100 pt-4">
+                                    <h4 class="text-sm font-bold text-black flex items-center"><i class="ph-bold ph-pencil-simple mr-2"></i>Edit Monthly Limit</h4>
+                                    <div class="mt-3 flex space-x-2">
+                                        <div class="flex-1">
+                                            <label class="block text-xs font-medium text-gray-500">Selected Month</label>
+                                            <div id="setting-active-month" class="text-sm font-mono font-bold text-black bg-gray-50 p-2 rounded border border-gray-200 mt-1"></div>
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-xs font-medium text-gray-500">New Limit ($)</label>
+                                            <input type="number" id="setting-new-limit" class="mt-1 block w-full rounded-md border-gray-300 border p-1.5 text-sm focus:border-black focus:ring-0" placeholder="600">
+                                        </div>
+                                    </div>
+                                    <button id="save-limit-btn" class="mt-3 w-full bg-black hover:bg-gray-800 text-white text-xs font-bold py-2 rounded">Update Limit</button>
+                                </div>
 
-        <div id="admin-tools" class="p-4 flex-shrink-0 space-y-3 border-b border-slate-100">
-            <div class="relative"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-lg"></i><input type="text" id="search-input" placeholder="Search..." class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg pl-10 p-2.5"></div>
-            <input type="file" id="json-upload" accept=".json" class="hidden" />
-            <button id="upload-btn" class="w-full flex items-center justify-center space-x-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2 rounded-lg text-sm shadow-sm font-medium"><i class="ph ph-upload-simple text-lg text-indigo-600"></i><span>Upload JSON</span></button>
-        </div>
-
-        <div id="sidebar-list-container" class="flex-1 overflow-y-auto scrollbar-hide px-3 py-2">
-            <div class="flex items-center justify-between px-2 mb-2"><h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clients</h3><span id="client-count" class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">0</span></div>
-            <div id="account-list" class="space-y-1 pb-4"><div class="px-2 text-sm text-slate-400 italic text-center mt-10">Loading...</div></div>
-        </div>
-
-        <div class="p-4 border-t border-slate-100 flex-shrink-0 bg-slate-50/50">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3 text-xs text-slate-500">
-                    <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold" id="user-avatar"><i class="ph-bold ph-user"></i></div>
-                    <div class="flex flex-col"><span id="logged-user-name" class="font-bold text-slate-700">Guest</span><span id="user-role" class="text-[10px] uppercase tracking-wider">Not Connected</span></div>
+                                <div class="mt-6 border-t border-gray-100 pt-4">
+                                    <h4 class="text-sm font-bold text-black flex items-center"><i class="ph-bold ph-calendar-plus mr-2"></i>Extend Account</h4>
+                                    <div class="mt-3">
+                                        <label class="block text-xs font-medium text-gray-500">Add New Month Block</label>
+                                        <div class="flex space-x-2 mt-1">
+                                            <input type="month" id="setting-new-month-picker" class="block w-full rounded-md border-gray-300 border p-1.5 text-sm focus:border-black focus:ring-0">
+                                            <input type="number" id="setting-new-month-limit" class="w-24 rounded-md border-gray-300 border p-1.5 text-sm focus:border-black focus:ring-0" placeholder="Limit" value="600">
+                                        </div>
+                                        <button id="add-month-btn" class="mt-3 w-full bg-black hover:bg-gray-800 text-white text-xs font-bold py-2 rounded">Add Month</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
+                        <button type="button" id="close-settings-btn" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-black ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto">Close</button>
+                    </div>
                 </div>
-                <button onclick="window.location.reload()" class="text-slate-400 hover:text-rose-600 transition-colors" title="Logout"><i class="ph-bold ph-sign-out"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="merge-modal" class="fixed inset-0 z-[80] hidden">
+        <div class="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left border border-black transition-all sm:my-8 sm:w-full sm:max-w-lg shadow-none">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-black text-white sm:mx-0 sm:h-10 sm:w-10">
+                                <i class="ph-bold ph-arrows-merge text-xl"></i>
+                            </div>
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-bold leading-6 text-black">Merge Duplicate Accounts</h3>
+                                <p class="text-xs text-gray-500 mt-1">Move all data from Source to Destination.</p>
+                                
+                                <div class="mt-6 space-y-4">
+                                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">1. Source (To Delete)</label>
+                                        <select id="merge-source-select" class="block w-full rounded-md border-gray-300 border p-2 text-sm focus:border-black focus:ring-0"><option value="">Select Account...</option></select>
+                                    </div>
+                                    <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-gray-400"></i></div>
+                                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                                        <label class="block text-xs font-bold text-black uppercase mb-1">2. Destination (To Keep)</label>
+                                        <select id="merge-dest-select" class="block w-full rounded-md border-gray-300 border p-2 text-sm focus:border-black focus:ring-0"><option value="">Select Account...</option></select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
+                        <button type="button" id="confirm-merge-btn" class="inline-flex w-full justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800 sm:ml-3 sm:w-auto">Merge</button>
+                        <button type="button" id="close-merge-btn" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-black ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="hidden fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-black transform -translate-x-full transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 flex flex-col">
+        <button onclick="window.resetToOverview()" class="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0 hover:bg-gray-50 transition-colors w-full text-left">
+            <div class="flex items-center space-x-2 text-black"><i class="ph-fill ph-wallet text-2xl"></i><span class="font-bold text-lg tracking-tight">Balances</span></div>
+            <i class="ph ph-house text-gray-400 hover:text-black hidden lg:block"></i>
+        </button>
+        <button id="close-sidebar" class="absolute top-4 right-4 lg:hidden text-gray-400 hover:text-black"><i class="ph ph-x text-xl"></i></button>
+
+        <div id="admin-tools" class="p-4 flex-shrink-0 space-y-3 border-b border-gray-200">
+            <div class="relative"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i><input type="text" id="search-input" placeholder="Search..." class="w-full bg-white border border-gray-300 text-black text-sm rounded-md pl-10 p-2.5 focus:border-black focus:ring-0"></div>
+            <input type="file" id="json-upload" accept=".json" class="hidden" />
+            <button id="upload-btn" class="w-full flex items-center justify-center space-x-2 bg-white border border-gray-300 hover:bg-gray-50 text-black px-4 py-2 rounded-md text-sm font-medium"><i class="ph ph-upload-simple text-lg text-black"></i><span>Upload JSON</span></button>
+            <button id="open-merge-btn" class="w-full flex items-center justify-center space-x-2 bg-white border border-gray-300 hover:bg-gray-50 text-black px-4 py-2 rounded-md text-sm font-medium"><i class="ph ph-arrows-merge text-lg text-black"></i><span>Merge Duplicates</span></button>
+        </div>
+
+        <div id="sidebar-list-container" class="flex-1 overflow-y-auto scrollbar-hide px-3 pt-2 pb-20 min-h-0">
+            <div class="flex items-center justify-between px-2 mb-2"><h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Clients</h3><span id="client-count" class="text-[10px] bg-gray-100 text-black px-1.5 py-0.5 rounded-md border border-gray-200">0</span></div>
+            <div id="account-list" class="space-y-1 pb-4"><div class="px-2 text-sm text-gray-400 italic text-center mt-10">Loading...</div></div>
+        </div>
+
+        <div class="p-4 border-t border-gray-200 flex-shrink-0 bg-gray-50">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3 text-xs text-gray-500">
+                    <div class="h-8 w-8 rounded-full bg-black flex items-center justify-center text-white font-bold" id="user-avatar"><i class="ph-bold ph-user"></i></div>
+                    <div class="flex flex-col"><span id="logged-user-name" class="font-bold text-black">Guest</span><span id="user-role" class="text-[10px] uppercase tracking-wider">Not Connected</span></div>
+                </div>
+                <button onclick="window.location.reload()" class="text-gray-400 hover:text-black transition-colors" title="Logout"><i class="ph-bold ph-sign-out text-lg"></i></button>
             </div>
         </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative bg-slate-50/50">
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0 shadow-sm z-10">
+    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative bg-white">
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0 z-10">
             <div class="flex items-center">
-                <button id="open-sidebar" class="mr-4 lg:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"><i class="ph ph-list text-2xl"></i></button>
-                <div><h1 id="header-title" class="text-xl font-bold text-slate-800 tracking-tight">Overview</h1><p id="header-subtitle" class="text-xs text-slate-500 hidden sm:block mt-0.5">Financial Snapshot</p></div>
+                <button id="open-sidebar" class="mr-4 lg:hidden p-2 -ml-2 text-gray-400 hover:text-black rounded-md hover:bg-gray-100 transition-colors"><i class="ph ph-list text-2xl"></i></button>
+                <div><h1 id="header-title" class="text-xl font-bold text-black tracking-tight">Overview</h1><p id="header-subtitle" class="text-xs text-gray-500 hidden sm:block mt-0.5">Financial Snapshot</p></div>
             </div>
-            <div class="flex items-center space-x-4"><div id="real-time-date" class="hidden sm:flex items-center space-x-2 text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100"></div></div>
+            <div class="flex items-center space-x-4"><div id="real-time-date" class="hidden sm:flex items-center space-x-2 text-sm font-medium text-black bg-white px-3 py-1.5 rounded-md border border-gray-200"></div></div>
         </header>
 
-        <div id="notification-area" class="absolute top-20 right-4 z-50 transition-opacity opacity-0 pointer-events-none">
-            <div id="notification-content" class="bg-white border border-slate-200 shadow-xl rounded-lg p-4 flex items-center space-x-3 max-w-sm"></div>
-        </div>
-
         <div id="main-scroll" class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div id="mobile-overlay" class="fixed inset-0 z-40 bg-black/50 hidden lg:hidden transition-opacity backdrop-blur-sm"></div>
+            <div id="mobile-overlay" class="fixed inset-0 z-40 bg-black/20 hidden lg:hidden transition-opacity backdrop-blur-sm"></div>
 
             <div id="empty-state" class="hidden flex flex-col items-center justify-center h-[60vh] text-center">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><div class="bg-indigo-50 p-4 rounded-full inline-block mb-2"><i class="ph-fill ph-users-three text-3xl text-indigo-600"></i></div></div>
-                <h2 class="text-xl font-semibold text-slate-900">Budget Tracker Admin</h2>
-                <p class="text-slate-500 mt-2 max-w-md">Upload data to manage client accounts.</p>
-                <button onclick="document.getElementById('json-upload').click()" class="mt-8 px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-md">Upload Data</button>
+                <div class="bg-white p-6 rounded-lg border border-black mb-6"><div class="bg-black p-4 rounded-full inline-block mb-2"><i class="ph-fill ph-users-three text-3xl text-white"></i></div></div>
+                <h2 class="text-xl font-bold text-black">Budget Tracker Admin</h2>
+                <p class="text-gray-500 mt-2 max-w-md">Upload data to manage client accounts.</p>
+                <button onclick="document.getElementById('json-upload').click()" class="mt-8 px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800">Upload Data</button>
             </div>
 
-            <!-- ADMIN DASHBOARD -->
             <div id="admin-dashboard-view" class="hidden space-y-6 max-w-7xl mx-auto">
-                <div id="account-cards-container" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"></div>
+                <div id="account-cards-container" class="grid grid-cols-1 gap-5 md:grid-cols-3"></div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><h4 class="text-sm font-semibold text-slate-800 mb-4">Total Spending Trend</h4><div class="relative h-64 w-full"><canvas id="trendLineChart"></canvas></div></div>
-                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><h4 class="text-sm font-semibold text-slate-800 mb-4">Budget Health</h4><div class="relative h-40 w-full flex justify-center"><canvas id="healthDoughnutChart"></canvas></div></div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><h4 class="text-sm font-semibold text-slate-800 mb-4">Top 5 Spenders</h4><div class="relative h-64 w-full"><canvas id="topSpendersChart"></canvas></div></div>
-                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col"><h4 class="text-sm font-semibold text-slate-800 mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div>
-                </div>
-                <div class="border-t border-slate-200 pt-6 mt-2"><h3 class="text-lg font-bold text-slate-800 mb-4">Detailed Breakdown by Account</h3><div id="dynamic-charts-area" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
-            </div>
-
-            <!-- CLIENT DASHBOARD -->
-            <div id="client-dashboard-view" class="hidden space-y-6 max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5"><dl><dt class="text-sm font-medium text-slate-500">Monthly Budget</dt><dd id="c-card-limit" class="text-2xl font-bold text-slate-900 mt-1">$0.00</dd></dl></div>
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5"><dl><dt class="text-sm font-medium text-slate-500">Total Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-slate-900 mt-1">$0.00</dd></dl></div>
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5"><dl><dt class="text-sm font-medium text-slate-500">Remaining</dt><dd id="c-card-remaining" class="text-2xl font-bold text-emerald-600 mt-1">$0.00</dd></dl></div>
-                </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                    <div class="flex justify-between items-end mb-2"><h4 class="text-sm font-semibold text-slate-700">Budget Utilization</h4><span id="c-utilization-text" class="text-xs text-slate-500 font-medium">0% Used</span></div>
-                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div>
-                </div>
-                <div class="flex items-center space-x-2 overflow-x-auto pb-2" id="client-month-selector"></div>
-                <div class="bg-white shadow-sm border border-slate-200 rounded-xl overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-                        <h3 class="text-base font-semibold text-slate-900">Transactions</h3>
-                        <div class="flex items-center space-x-3">
-                            <button id="add-tx-btn" class="text-xs flex items-center space-x-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-md font-medium transition-colors"><i class="ph-bold ph-plus"></i><span>Log Trip</span></button>
-                            <span id="c-tx-count" class="text-xs font-medium text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-sm">0 entries</span>
+                <div class="rounded-lg overflow-hidden w-full md:flex bg-white border border-black">
+                    <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative overflow-hidden">
+                        <canvas id="tickerChart" class="w-full relative z-10"></canvas>
+                        <div class="absolute top-0 right-0 p-8 opacity-20"><i class="ph-fill ph-trend-up text-9xl text-white"></i></div>
+                    </div>
+                    <div class="flex w-full md:w-1/2 p-8 bg-white text-black items-center border-l border-black">
+                        <div class="w-full">
+                            <h3 class="text-lg font-bold leading-tight text-black" id="ticker-title">Global Activity</h3>
+                            <h6 class="text-xs font-medium uppercase tracking-wide text-gray-400 mb-4" id="ticker-subtitle">Real-time Financials</h6>
+                            <div class="flex w-full items-end mb-6">
+                                <span class="block leading-none text-4xl font-bold text-black" id="ticker-current-price">$0.00</span>
+                                <span class="block leading-5 text-sm ml-4 font-bold" id="ticker-change"></span>
+                            </div>
+                            <div class="flex w-full text-xs border-b border-gray-200 pb-2 mb-2">
+                                <div class="flex w-5/12"><div class="flex-1 pr-3 text-left font-semibold text-gray-500">Total Limit</div><div class="flex-1 px-3 text-right font-mono font-bold text-black" id="ticker-open">$0</div></div>
+                                <div class="flex w-7/12"><div class="flex-1 px-3 text-left font-semibold text-gray-500">Total Trans.</div><div class="flex-1 pl-3 text-right font-mono font-bold text-black" id="ticker-cap">0</div></div>
+                            </div>
+                            <div class="flex w-full text-xs border-b border-gray-200 pb-2 mb-2">
+                                <div class="flex w-5/12"><div class="flex-1 pr-3 text-left font-semibold text-gray-500">Highest Tx</div><div class="px-3 text-right font-mono font-bold text-black" id="ticker-high">$0</div></div>
+                                <div class="flex w-7/12"><div class="flex-1 px-3 text-left font-semibold text-gray-500">Avg. Cost</div><div class="pl-3 text-right font-mono font-bold text-black" id="ticker-ratio">$0</div></div>
+                            </div>
+                            <div class="flex w-full text-xs">
+                                <div class="flex w-5/12"><div class="flex-1 pr-3 text-left font-semibold text-gray-500">Lowest Tx</div><div class="px-3 text-right font-mono font-bold text-black" id="ticker-low">$0</div></div>
+                                <div class="flex w-7/12"><div class="flex-1 px-3 text-left font-semibold text-gray-500">Remaining</div><div class="pl-3 text-right font-mono font-bold text-black" id="ticker-dividend">$0</div></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3.5 text-left text-xs font-medium text-slate-500 uppercase">Date</th><th class="px-6 py-3.5 text-left text-xs font-medium text-slate-500 uppercase">Description</th><th class="px-6 py-3.5 text-right text-xs font-medium text-slate-500 uppercase">Amount</th></tr></thead><tbody id="c-tx-body" class="bg-white divide-y divide-slate-200"></tbody></table></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold text-black mb-4">Top 5 Spenders</h4><div class="relative h-64 w-full"><canvas id="topSpendersChart"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-lg border border-gray-200 flex flex-col"><h4 class="text-sm font-bold text-black mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-sm font-bold text-black">Daily Spending Activity (Last 365 Days)</h4>
+                        <div class="flex items-center space-x-1 text-[10px] text-gray-400">
+                            <span>Less</span>
+                            <div class="w-3 h-3 bg-gray-100 rounded-sm"></div>
+                            <div class="w-3 h-3 bg-gray-300 rounded-sm"></div>
+                            <div class="w-3 h-3 bg-gray-500 rounded-sm"></div>
+                            <div class="w-3 h-3 bg-gray-700 rounded-sm"></div>
+                            <div class="w-3 h-3 bg-black rounded-sm"></div>
+                            <span>More</span>
+                        </div>
+                    </div>
+                    <div class="heatmap-scroll"><div class="heatmap-grid" id="heatmap-container"></div></div>
+                </div>
+                <div class="border-t border-gray-200 pt-6 mt-2"><h3 class="text-lg font-bold text-black mb-4">Detailed Breakdown</h3><div id="dynamic-charts-area" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
+            </div>
+
+            <div id="client-dashboard-view" class="hidden space-y-6 max-w-7xl mx-auto">
+                <div class="flex justify-end mb-2">
+                     <button id="admin-manage-btn" class="hidden text-xs bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-800 flex items-center space-x-1"><i class="ph-bold ph-gear"></i><span>Manage Budget</span></button>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-sm font-medium text-gray-500">Monthly Budget</dt><dd id="c-card-limit" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
+                    <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-sm font-medium text-gray-500">Total Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
+                    <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-sm font-medium text-gray-500">Remaining</dt><dd id="c-card-remaining" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-5">
+                    <div class="flex justify-between items-end mb-2"><h4 class="text-sm font-bold text-black">Budget Utilization</h4><span id="c-utilization-text" class="text-xs text-gray-500 font-medium">0% Used</span></div>
+                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-black h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div>
+                </div>
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2" id="client-month-selector"></div>
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                        <h3 class="text-base font-bold text-black">Transactions</h3>
+                        <div class="flex items-center space-x-3">
+                            <button id="add-tx-btn" class="text-xs flex items-center space-x-1 bg-white hover:bg-gray-50 text-black border border-gray-300 px-3 py-1.5 rounded-md font-medium transition-colors"><i class="ph-bold ph-plus"></i><span>Log Trip</span></button>
+                            <span id="c-tx-count" class="text-xs font-medium text-gray-600 bg-white border border-gray-300 px-2.5 py-1 rounded-md">0 entries</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 uppercase">Date</th><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 uppercase">Description</th><th class="px-6 py-3.5 text-right text-xs font-bold text-gray-500 uppercase">Amount</th></tr></thead><tbody id="c-tx-body" class="bg-white divide-y divide-gray-200"></tbody></table></div>
                 </div>
             </div>
         </div>
@@ -197,7 +337,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, query, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, query, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyB-P87cAnvDHpCoPocqhjHE9zGaDQXxe2U", authDomain: "balance-t.firebaseapp.com", databaseURL: "https://balance-t-default-rtdb.firebaseio.com", projectId: "balance-t", storageBucket: "balance-t.firebasestorage.app", messagingSenderId: "893924100931", appId: "1:893924100931:web:70427b3ff655341594fdf6", measurementId: "G-5RJM9SQDS1" };
         const app = initializeApp(firebaseConfig);
@@ -205,19 +345,22 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'balance-t-default';
 
-        let state = { firebaseUser: null, accounts: [], currentUser: null, activeAccount: null, expandedAccountGroupId: null, expandedClientDocId: null, selectedMonthLabel: null, loading: true, searchQuery: "", charts: { trend: null, doughnut: null, topSpenders: null, dynamic: [] }, filterAccountId: null };
+        let state = { firebaseUser: null, accounts: [], currentUser: null, activeAccount: null, expandedAccountGroupId: null, expandedClientDocId: null, selectedMonthLabel: null, loading: true, searchQuery: "", charts: { trend: null, topSpenders: null, dynamic: [] }, filterAccountId: null };
         const els = { 
             authLayer: document.getElementById('auth-layer'), loginCard: document.getElementById('login-card'), loginForm: document.getElementById('login-form'), loginBtn: document.getElementById('login-btn'), loginError: document.getElementById('login-error'), systemStatus: document.getElementById('system-status'), changePassCard: document.getElementById('change-pass-card'), changePassForm: document.getElementById('change-pass-form'), 
             sidebar: document.getElementById('sidebar'), sidebarListContainer: document.getElementById('sidebar-list-container'), adminTools: document.getElementById('admin-tools'), accountList: document.getElementById('account-list'), clientCount: document.getElementById('client-count'), searchInput: document.getElementById('search-input'), uploadBtn: document.getElementById('upload-btn'), uploadInput: document.getElementById('json-upload'), 
             userAvatar: document.getElementById('user-avatar'), loggedUserName: document.getElementById('logged-user-name'), userRole: document.getElementById('user-role'), 
             emptyState: document.getElementById('empty-state'), adminView: document.getElementById('admin-dashboard-view'), clientView: document.getElementById('client-dashboard-view'), 
-            accountCardsContainer: document.getElementById('account-cards-container'), recentActivityList: document.getElementById('recent-activity-list'), dynamicChartsArea: document.getElementById('dynamic-charts-area'), 
+            accountCardsContainer: document.getElementById('account-cards-container'), recentActivityList: document.getElementById('recent-activity-list'), dynamicChartsArea: document.getElementById('dynamic-charts-area'), heatmapContainer: document.getElementById('heatmap-container'),
             cCardLimit: document.getElementById('c-card-limit'), cCardSpent: document.getElementById('c-card-spent'), cCardRemaining: document.getElementById('c-card-remaining'), cProgressBar: document.getElementById('c-progress-bar'), cUtilizationText: document.getElementById('c-utilization-text'), cTxBody: document.getElementById('c-tx-body'), cTxCount: document.getElementById('c-tx-count'), clientMonthSelector: document.getElementById('client-month-selector'), 
             headerTitle: document.getElementById('header-title'), headerSubtitle: document.getElementById('header-subtitle'), realTimeDate: document.getElementById('real-time-date'), mobileOverlay: document.getElementById('mobile-overlay'),
-            txModal: document.getElementById('tx-modal'), addTxBtn: document.getElementById('add-tx-btn'), saveTxBtn: document.getElementById('save-tx-btn'), closeModalBtn: document.getElementById('close-modal-btn'), modalDate: document.getElementById('modal-date'), modalDesc: document.getElementById('modal-desc'), modalAmount: document.getElementById('modal-amount')
+            txModal: document.getElementById('tx-modal'), addTxBtn: document.getElementById('add-tx-btn'), saveTxBtn: document.getElementById('save-tx-btn'), closeModalBtn: document.getElementById('close-modal-btn'), modalDate: document.getElementById('modal-date'), modalDesc: document.getElementById('modal-desc'), modalAmount: document.getElementById('modal-amount'),
+            settingsModal: document.getElementById('settings-modal'), adminManageBtn: document.getElementById('admin-manage-btn'), closeSettingsBtn: document.getElementById('close-settings-btn'), 
+            settingActiveMonth: document.getElementById('setting-active-month'), settingNewLimit: document.getElementById('setting-new-limit'), saveLimitBtn: document.getElementById('save-limit-btn'),
+            settingNewMonthPicker: document.getElementById('setting-new-month-picker'), settingNewMonthLimit: document.getElementById('setting-new-month-limit'), addMonthBtn: document.getElementById('add-month-btn'),
+            tickerCurrentPrice: document.getElementById('ticker-current-price'), tickerChange: document.getElementById('ticker-change'), tickerOpen: document.getElementById('ticker-open'), tickerCap: document.getElementById('ticker-cap'), tickerHigh: document.getElementById('ticker-high'), tickerLow: document.getElementById('ticker-low'), tickerRatio: document.getElementById('ticker-ratio'), tickerDividend: document.getElementById('ticker-dividend'), tickerTitle: document.getElementById('ticker-title')
         };
 
-        // --- MATH HELPERS ---
         function cleanAmount(val) {
             if (typeof val === 'number') return val;
             if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g,"")) || 0;
@@ -242,24 +385,23 @@
             const sorted = [...budgetData].sort((a,b) => new Date(b.monthLabel) - new Date(a.monthLabel));
             return sorted[0];
         }
+        Number.prototype.m_formatter = function() { return this > 999999 ? (this / 1000000).toFixed(1) + 'M' : this; };
 
-        // --- AUTH ---
         async function initAuth() {
             try { els.loginBtn.disabled = true; if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); } catch (e) { els.systemStatus.innerHTML = '<span class="text-rose-500">Connection Failed</span>'; }
         }
         onAuthStateChanged(auth, (user) => { state.firebaseUser = user; if (user) setupDataListener(); else els.systemStatus.innerHTML = '<span class="text-rose-500">Disconnected</span>'; });
 
         function setupDataListener() {
-            // *** UPDATED TO PUBLIC PATH ***
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'accounts'));
             onSnapshot(q, (snapshot) => {
                 const accounts = [];
                 snapshot.forEach(doc => { const data = doc.data(); data.id = doc.id; accounts.push(data); });
                 state.accounts = accounts;
                 state.loading = false;
-                els.loginBtn.disabled = false; els.loginBtn.innerHTML = 'Sign In'; els.systemStatus.innerHTML = '<span class="text-emerald-500">System Ready</span>';
+                els.loginBtn.disabled = false; els.loginBtn.innerHTML = 'Sign In'; els.systemStatus.innerHTML = '<span class="text-black font-bold">System Ready</span>';
                 if(state.currentUser) {
-                    if(state.currentUser.role === 'admin') { renderSidebar(); renderAdminDashboard(); }
+                    if(state.currentUser.role === 'admin') { renderSidebar(); renderAdminDashboard(); if(state.activeAccount) renderClientDashboard(); }
                     else { const fresh = accounts.find(a => a.id === state.currentUser.id); if(fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; renderClientDashboard(); } }
                 }
             });
@@ -281,7 +423,6 @@
             e.preventDefault(); const p = document.getElementById('new-password').value.trim();
             if(p.length < 4) { alert("Password too short"); return; }
             try { 
-                // *** UPDATED TO PUBLIC PATH ***
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.tempLoginUser.id), { auth_password: p, auth_password_changed: true }); 
                 loginSuccess({ role: 'client', name: state.tempLoginUser.clientName, id: state.tempLoginUser.id, data: state.tempLoginUser }); 
             } catch (err) { alert("Error"); }
@@ -292,8 +433,15 @@
             state.currentUser = user; els.authLayer.classList.add('hidden'); els.sidebar.classList.remove('hidden');
             els.loggedUserName.textContent = user.name; els.userRole.textContent = user.role.toUpperCase();
             els.userAvatar.innerHTML = `<span class="text-xs">${getInitials(user.name)}</span>`;
-            if (user.role === 'client') { state.activeAccount = user.data; els.adminTools.classList.add('hidden'); els.sidebarListContainer.classList.add('hidden'); els.adminView.classList.add('hidden'); els.emptyState.classList.add('hidden'); els.clientView.classList.remove('hidden'); renderClientDashboard(); }
-            else { state.activeAccount = null; els.adminTools.classList.remove('hidden'); els.sidebarListContainer.classList.remove('hidden'); if(state.accounts.length>0) { els.emptyState.classList.add('hidden'); els.adminView.classList.remove('hidden'); renderAdminDashboard(); } else els.emptyState.classList.remove('hidden'); renderSidebar(); }
+            if (user.role === 'client') { 
+                state.activeAccount = user.data; els.adminTools.classList.add('hidden'); els.sidebarListContainer.classList.add('hidden'); els.adminView.classList.add('hidden'); els.emptyState.classList.add('hidden'); els.clientView.classList.remove('hidden'); 
+                els.adminManageBtn.classList.add('hidden');
+                renderClientDashboard(); 
+            }
+            else { 
+                state.activeAccount = null; els.adminTools.classList.remove('hidden'); els.sidebarListContainer.classList.remove('hidden'); 
+                if(state.accounts.length>0) { els.emptyState.classList.add('hidden'); els.adminView.classList.remove('hidden'); renderAdminDashboard(); } else els.emptyState.classList.remove('hidden'); renderSidebar(); 
+            }
         }
 
         window.loadClientView = (id, mLabel=null) => {
@@ -301,11 +449,13 @@
             state.activeAccount = acc; state.selectedMonthLabel = mLabel;
             els.adminView.classList.add('hidden'); els.emptyState.classList.add('hidden'); els.clientView.classList.remove('hidden');
             if(window.innerWidth < 1024) { els.sidebar.classList.add('-translate-x-full'); document.getElementById('mobile-overlay').classList.add('hidden'); }
+            if(state.currentUser && state.currentUser.role === 'admin') els.adminManageBtn.classList.remove('hidden');
+            else els.adminManageBtn.classList.add('hidden');
             renderClientDashboard(); renderSidebar();
         };
         
         window.filterByAccountGroup = (accId) => {
-            if(state.filterAccountId === accId) state.filterAccountId = null; // Toggle off
+            if(state.filterAccountId === accId) state.filterAccountId = null; 
             else state.filterAccountId = accId;
             renderAdminDashboard();
         }
@@ -314,10 +464,8 @@
         window.toggleClient = (id) => { state.expandedClientDocId = state.expandedClientDocId===id?null:id; renderSidebar(); };
         window.resetToOverview = () => { 
             if (state.currentUser?.role === 'admin') { 
-                state.activeAccount = null; 
-                state.filterAccountId = null;
-                els.clientView.classList.add('hidden'); 
-                els.emptyState.classList.add('hidden'); 
+                state.activeAccount = null; state.filterAccountId = null;
+                els.clientView.classList.add('hidden'); els.emptyState.classList.add('hidden'); 
                 if(state.accounts.length>0) { els.adminView.classList.remove('hidden'); renderAdminDashboard(); } 
                 else els.emptyState.classList.remove('hidden'); 
                 renderSidebar(); 
@@ -330,29 +478,29 @@
             const grouped = filtered.reduce((g, acc) => { const id = acc.accountId || 'Unassigned'; if(!g[id]) g[id]={label:`${id} (${acc.organization||'Unknown'})`, clients:[]}; g[id].clients.push(acc); return g; }, {});
             const ids = Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b));
             els.clientCount.textContent = filtered.length;
-            if(filtered.length === 0) { els.accountList.innerHTML = `<div class="px-4 py-8 text-sm text-slate-400 italic text-center">No data.</div>`; return; }
+            if(filtered.length === 0) { els.accountList.innerHTML = `<div class="px-4 py-8 text-sm text-gray-400 italic text-center">No data.</div>`; return; }
             els.accountList.innerHTML = ids.map(gid => {
                 const group = grouped[gid]; const expanded = state.expandedAccountGroupId === gid;
                 return `
                     <div class="mb-1">
-                        <button onclick="window.toggleAccountGroup('${gid}')" class="w-full group flex items-center px-3 py-3 rounded-lg text-sm font-medium text-left ${state.activeAccount?.accountId == gid ? 'bg-indigo-50 text-indigo-900' : 'text-slate-600 hover:bg-slate-100'}">
-                            <div class="flex-shrink-0 mr-3"><div class="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-600 text-white"><i class="ph-bold ph-bank text-sm"></i></div></div>
-                            <div class="flex-1 min-w-0"><div class="truncate font-bold">${group.label}</div><div class="text-[10px] text-slate-400">${group.clients.length} Client${group.clients.length!==1?'s':''}</div></div>
-                            <i class="ph-bold ph-caret-down text-slate-400 ${expanded?'rotate-180':''}"></i>
+                        <button onclick="window.toggleAccountGroup('${gid}')" class="w-full group flex items-center px-3 py-3 rounded-md text-sm font-medium text-left ${state.activeAccount?.accountId == gid ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}">
+                            <div class="flex-shrink-0 mr-3"><div class="w-8 h-8 rounded-full flex items-center justify-center bg-gray-200 text-black font-bold"><i class="ph-bold ph-bank text-sm"></i></div></div>
+                            <div class="flex-1 min-w-0"><div class="truncate font-bold">${group.label}</div><div class="text-[10px] text-gray-400">${group.clients.length} Client${group.clients.length!==1?'s':''}</div></div>
+                            <i class="ph-bold ph-caret-down text-gray-400 ${expanded?'rotate-180':''}"></i>
                         </button>
-                        <div class="accordion-content ${expanded?'open':''} ml-4 pl-2 border-l-2 border-slate-100 space-y-1 my-1">
+                        <div class="accordion-content ${expanded?'open':''} ml-4 pl-2 border-l-2 border-gray-200 space-y-1 my-1">
                             ${group.clients.map(c => {
                                 const cExp = state.expandedClientDocId === c.id;
                                 let months = c.budgetData ? c.budgetData.map(b => ({label:b.monthLabel, date:new Date(b.monthLabel)})) : [];
                                 months = months.filter(m => m.date <= now || (m.date.getMonth()===now.getMonth() && m.date.getFullYear()===now.getFullYear())).sort((a,b)=>b.date-a.date);
                                 return `
                                     <div>
-                                        <button onclick="window.toggleClient('${c.id}')" class="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-md transition-colors ${state.activeAccount?.id===c.id?'text-indigo-700 bg-indigo-50/50':'text-slate-500 hover:bg-slate-50'}">
-                                            <div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-500">${getInitials(c.clientName)}</div><span>${c.clientName}</span></div>
-                                            <i class="ph-bold ph-caret-down text-slate-300 ${cExp?'rotate-180':''}"></i>
+                                        <button onclick="window.toggleClient('${c.id}')" class="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-md transition-colors ${state.activeAccount?.id===c.id?'text-black bg-gray-200 font-bold':'text-gray-500 hover:bg-gray-50'}">
+                                            <div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-white border border-gray-300 flex items-center justify-center text-[9px] font-bold text-black">${getInitials(c.clientName)}</div><span>${c.clientName}</span></div>
+                                            <i class="ph-bold ph-caret-down text-gray-300 ${cExp?'rotate-180':''}"></i>
                                         </button>
-                                        <div class="accordion-content ${cExp?'open':''} ml-3 pl-2 border-l border-slate-200 mt-1 space-y-0.5">
-                                            ${months.length>0 ? months.map(m => `<button onclick="window.loadClientView('${c.id}', '${m.label}')" class="w-full text-left px-2 py-1.5 rounded text-[11px] font-medium flex items-center justify-between ${state.activeAccount?.id===c.id && state.selectedMonthLabel===m.label ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:bg-slate-50'}"><span>${m.label}</span></button>`).join('') : '<div class="px-2 italic text-[10px] text-slate-300">No data</div>'}
+                                        <div class="accordion-content ${cExp?'open':''} ml-3 pl-2 border-l border-gray-200 mt-1 space-y-0.5">
+                                            ${months.length>0 ? months.map(m => `<button onclick="window.loadClientView('${c.id}', '${m.label}')" class="w-full text-left px-2 py-1.5 rounded text-[11px] font-medium flex items-center justify-between ${state.activeAccount?.id===c.id && state.selectedMonthLabel===m.label ? 'text-white bg-black' : 'text-gray-400 hover:bg-gray-100'}"><span>${m.label}</span></button>`).join('') : '<div class="px-2 italic text-[10px] text-gray-300">No data</div>'}
                                         </div>
                                     </div>
                                 `;
@@ -368,13 +516,19 @@
                 els.headerTitle.textContent = state.filterAccountId ? `Overview - Account ${state.filterAccountId}` : "Executive Dashboard";
                 els.headerSubtitle.textContent = "Global Financial Overview";
                 
-                if(state.charts.trend) state.charts.trend.destroy(); if(state.charts.doughnut) state.charts.doughnut.destroy(); if(state.charts.topSpenders) state.charts.topSpenders.destroy(); state.charts.dynamic.forEach(c=>c.destroy()); state.charts.dynamic=[];
+                if(state.charts.trend) state.charts.trend.destroy(); 
+                if(state.charts.topSpenders) state.charts.topSpenders.destroy(); 
+                state.charts.dynamic.forEach(c=>c.destroy()); 
+                state.charts.dynamic=[];
                 els.dynamicChartsArea.innerHTML = '';
                 els.accountCardsContainer.innerHTML = ''; 
 
-                let safe=0, warn=0, danger=0;
-                const hist={}, cSpends=[], allTxs=[];
+                let totalSpent = 0, totalLimit = 0, totalRemaining = 0, txCount = 0;
+                let highTx = 0, lowTx = Infinity, sumTx = 0;
+                let cSpends=[], allTxs=[];
                 const accountStats = {}; 
+                const dailySpending = {}; 
+                const dailyTotals = {};
 
                 const targetAccounts = state.filterAccountId ? state.accounts.filter(a => a.accountId == state.filterAccountId) : state.accounts;
 
@@ -383,20 +537,107 @@
                     if(!accountStats[accId]) accountStats[accId] = { budget:0, spent:0, clients:0 };
                     accountStats[accId].clients++;
 
-                    const b = getCurrentBudget(acc.budgetData);
-                    if(b) {
-                        const lim = cleanAmount(b.monthlyLimit);
-                        const sp = calculateRealSpent(b.transactions);
-                        accountStats[accId].budget += lim;
-                        accountStats[accId].spent += sp;
-
-                        const pct = lim>0 ? sp/lim : 0;
-                        if(pct>1 || (lim-sp)<0) danger++; else if(pct>0.75) warn++; else safe++;
-                        if(sp>0) cSpends.push({name:acc.clientName, amount:sp});
-                        
-                        getCleanTransactions(b.transactions).forEach(tx => allTxs.push({...tx, client:acc.clientName}));
+                    if (acc.budgetData && Array.isArray(acc.budgetData)) {
+                        const b = getCurrentBudget(acc.budgetData);
+                        if(b) {
+                            const lim = cleanAmount(b.monthlyLimit);
+                            const sp = calculateRealSpent(b.transactions);
+                            accountStats[accId].budget += lim;
+                            accountStats[accId].spent += sp;
+                            
+                            totalSpent += sp;
+                            totalLimit += lim;
+                            
+                            if(sp>0) cSpends.push({name:acc.clientName, amount:sp});
+                            
+                            getCleanTransactions(b.transactions).forEach(tx => {
+                                allTxs.push({...tx, client:acc.clientName});
+                                const amt = cleanAmount(tx.amount);
+                                if(amt > highTx) highTx = amt;
+                                if(amt < lowTx) lowTx = amt;
+                                sumTx += amt;
+                                txCount++;
+                                
+                                const dObj = new Date(tx.date);
+                                if (!isNaN(dObj)) {
+                                    const key = dObj.toISOString().split('T')[0];
+                                    dailySpending[key] = (dailySpending[key] || 0) + amt;
+                                }
+                            });
+                        }
+                        // For Heatmap: All history
+                        acc.budgetData.forEach(bd => {
+                            if(bd.transactions) {
+                                bd.transactions.forEach(tx => {
+                                    if(tx.date && tx.amount) {
+                                        const dObj = new Date(tx.date);
+                                        if(!isNaN(dObj)) {
+                                            const key = dObj.toISOString().split('T')[0];
+                                            dailyTotals[key] = (dailyTotals[key] || 0) + cleanAmount(tx.amount);
+                                        }
+                                    }
+                                });
+                            }
+                        });
                     }
-                    acc.budgetData.forEach(bd => { if(!hist[bd.monthLabel]) hist[bd.monthLabel]=0; hist[bd.monthLabel]+=calculateRealSpent(bd.transactions); });
+                });
+                
+                totalRemaining = totalLimit - totalSpent;
+                if(lowTx === Infinity) lowTx = 0;
+                const avgTx = txCount > 0 ? sumTx / txCount : 0;
+
+                els.tickerTitle.textContent = state.filterAccountId ? `Account ${state.filterAccountId} Activity` : "Global Activity";
+                els.tickerCurrentPrice.textContent = formatCurrency(totalSpent);
+                const pctUsed = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
+                els.tickerChange.textContent = `${pctUsed.toFixed(1)}% Used`;
+                els.tickerChange.className = `block leading-5 text-sm ml-4 font-bold ${pctUsed > 100 ? 'text-red-600' : 'text-green-600'}`;
+                
+                els.tickerOpen.textContent = formatCurrency(totalLimit);
+                els.tickerCap.textContent = txCount;
+                els.tickerHigh.textContent = formatCurrency(highTx);
+                els.tickerLow.textContent = formatCurrency(lowTx);
+                els.tickerRatio.textContent = formatCurrency(avgTx);
+                els.tickerDividend.textContent = formatCurrency(totalRemaining);
+                
+                const labels = [], dataPoints = [];
+                for(let i=13; i>=0; i--) {
+                    const d = new Date(); d.setDate(d.getDate() - i);
+                    const key = d.toISOString().split('T')[0];
+                    labels.push(d.toLocaleDateString('en-US', {weekday:'short', day:'numeric'}));
+                    dataPoints.push(dailySpending[key] || 0);
+                }
+
+                state.charts.trend = new Chart(document.getElementById('tickerChart').getContext('2d'), { 
+                    type: 'line', 
+                    data: { 
+                        labels: labels, 
+                        datasets: [{ 
+                            data: dataPoints, 
+                            borderColor: "rgba(255, 255, 255, 1)", 
+                            backgroundColor: "rgba(255, 255, 255, 0.1)", 
+                            pointBackgroundColor: "rgba(255, 255, 255, 1)", 
+                            borderWidth: 2, 
+                            tension: 0.3,
+                            fill: true 
+                        }] 
+                    }, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } }, 
+                        layout: { padding: { right: 10, left: 10, top: 10, bottom: 10 } },
+                        scales: { 
+                            x: { 
+                                ticks: { color: "rgba(255, 255, 255, 0.8)", font: { size: 10 } }, 
+                                grid: { color: "rgba(255, 255, 255, 0.1)" } 
+                            }, 
+                            y: { 
+                                ticks: { color: "rgba(255, 255, 255, 0.8)", font: { size: 10 } }, 
+                                grid: { display: false },
+                                beginAtZero: true
+                            } 
+                        } 
+                    } 
                 });
 
                 const sortedIds = Object.keys(accountStats).sort((a,b)=>parseInt(a)-parseInt(b));
@@ -405,46 +646,64 @@
                     const isActive = state.filterAccountId == id;
                     const rem = s.budget - s.spent;
                     return `
-                    <div onclick="window.filterByAccountGroup('${id}')" class="account-card bg-white rounded-xl border ${isActive ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'} shadow-sm p-5 cursor-pointer hover:shadow-md">
+                    <div onclick="window.filterByAccountGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive ? 'border-black bg-gray-50' : 'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400">
                         <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-lg font-bold text-slate-800">Account ${id}</h3>
-                            <span class="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded">${s.clients} Clients</span>
+                            <h3 class="text-lg font-bold text-black">Account ${id}</h3>
+                            <span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300">${s.clients} Clients</span>
                         </div>
-                        <div class="grid grid-cols-3 gap-2 mt-2 text-center divide-x divide-slate-100">
-                            <div><p class="text-[10px] text-slate-400 uppercase font-semibold">Budget</p><p class="text-sm font-bold text-slate-900">${formatCurrency(s.budget)}</p></div>
-                            <div><p class="text-[10px] text-slate-400 uppercase font-semibold">Spent</p><p class="text-sm font-bold text-slate-900">${formatCurrency(s.spent)}</p></div>
-                            <div><p class="text-[10px] text-slate-400 uppercase font-semibold">Remain</p><p class="text-sm font-bold ${rem<0?'text-rose-600':'text-emerald-600'}">${formatCurrency(rem)}</p></div>
+                        <div class="grid grid-cols-3 gap-2 mt-2 text-center divide-x divide-gray-100">
+                            <div><p class="text-[10px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-sm font-bold text-black">${formatCurrency(s.budget)}</p></div>
+                            <div><p class="text-[10px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-sm font-bold text-black">${formatCurrency(s.spent)}</p></div>
+                            <div><p class="text-[10px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-sm font-bold ${rem<0?'text-red-600':'text-green-600'}">${formatCurrency(rem)}</p></div>
                         </div>
                     </div>`;
                 }).join('');
 
-                const sortM = Object.keys(hist).sort((a,b)=>new Date(a)-new Date(b)).slice(-6);
-                state.charts.trend = new Chart(document.getElementById('trendLineChart').getContext('2d'), { type: 'line', data: { labels: sortM, datasets: [{ label: 'Total', data: sortM.map(m=>hist[m]), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)', fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-                state.charts.doughnut = new Chart(document.getElementById('healthDoughnutChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Safe','Warn','Over'], datasets: [{ data: [safe,warn,danger], backgroundColor: ['#10b981','#facc15','#f43f5e'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false } } } });
+                // Heatmap Generation
+                const today = new Date();
+                const oneYearAgo = new Date();
+                oneYearAgo.setDate(today.getDate() - 365);
+                let heatmapHTML = '';
+                for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
+                    const dateKey = d.toISOString().split('T')[0];
+                    const val = dailyTotals[dateKey] || 0;
+                    let level = 'level-0';
+                    if (val > 300) level = 'level-4';
+                    else if (val > 150) level = 'level-3';
+                    else if (val > 50) level = 'level-2';
+                    else if (val > 0) level = 'level-1';
+                    const tooltip = `${d.toLocaleDateString()}: ${formatCurrency(val)}`;
+                    heatmapHTML += `<div class="day-cell ${level}" title="${tooltip}"></div>`;
+                }
+                if(els.heatmapContainer) els.heatmapContainer.innerHTML = heatmapHTML;
+
                 cSpends.sort((a,b)=>b.amount-a.amount);
-                state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { type: 'bar', indexAxis: 'y', data: { labels: cSpends.slice(0,5).map(c=>c.name), datasets: [{ data: cSpends.slice(0,5).map(c=>c.amount), backgroundColor: '#6366f1' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+                state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { 
+                    type: 'bar', indexAxis: 'y', data: { labels: cSpends.slice(0,5).map(c=>c.name), datasets: [{ data: cSpends.slice(0,5).map(c=>c.amount), backgroundColor: '#000000', borderRadius: 2 }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false } } } } 
+                });
 
                 allTxs.sort((a,b)=>new Date(b.date)-new Date(a.date));
-                if (allTxs.length === 0) {
-                    els.recentActivityList.innerHTML = '<div class="text-center text-sm text-slate-400 italic p-4">No recent transactions found.</div>';
-                } else {
-                    els.recentActivityList.innerHTML = allTxs.slice(0,5).map(tx => `
-                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                            <div class="flex items-center space-x-3 overflow-hidden">
-                                <div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">${getInitials(tx.client)}</div>
-                                <div class="min-w-0"><div class="text-xs font-semibold text-slate-700 truncate">${tx.client}</div><div class="text-[10px] text-slate-400 truncate">${(!tx.description || tx.description==='undefined') ? 'No Description' : tx.description}</div></div>
-                            </div>
-                            <div class="text-xs font-bold text-slate-800">${formatCurrency(cleanAmount(tx.amount))}</div>
-                        </div>`).join('');
+                if (allTxs.length === 0) { els.recentActivityList.innerHTML = '<div class="text-center text-sm text-gray-400 italic p-4">No recent transactions found.</div>'; } 
+                else { els.recentActivityList.innerHTML = allTxs.slice(0,5).map(tx => `
+                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                        <div class="flex items-center space-x-3 overflow-hidden"><div class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center text-[10px] font-bold text-black">${getInitials(tx.client)}</div><div class="min-w-0"><div class="text-xs font-bold text-black truncate">${tx.client}</div><div class="text-[10px] text-gray-500 truncate">${(!tx.description || tx.description==='undefined') ? 'No Description' : tx.description}</div></div></div><div class="text-xs font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</div>
+                    </div>`).join('');
                 }
 
                 const grp = targetAccounts.reduce((g, acc) => { const id=acc.accountId||'U'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {});
                 Object.keys(grp).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(gid => {
-                    const d = document.createElement('div'); d.className = "bg-white p-5 rounded-xl border border-slate-200 shadow-sm"; d.innerHTML = `<h4 class="text-sm font-semibold mb-2">Account ${gid}</h4><div class="h-60"><canvas></canvas></div>`; els.dynamicChartsArea.appendChild(d);
-                    const l=[], v=[]; grp[gid].forEach(acc => { const b=getCurrentBudget(acc.budgetData); if(b){ l.push(acc.clientName); v.push(calculateRealSpent(b.transactions)); } });
-                    state.charts.dynamic.push(new Chart(d.querySelector('canvas').getContext('2d'), { type: 'bar', data: { labels: l, datasets: [{ label: 'Spent', data: v, backgroundColor: '#4f46e5' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } }));
+                    const d = document.createElement('div'); d.className = "bg-white p-5 rounded-lg border border-gray-200"; 
+                    d.innerHTML = `<h4 class="text-sm font-bold text-black mb-2">Account ${gid}</h4><div class="h-60"><canvas></canvas></div>`; 
+                    els.dynamicChartsArea.appendChild(d);
+                    const l=[], v=[]; 
+                    grp[gid].forEach(acc => { if (acc.budgetData) { const b=getCurrentBudget(acc.budgetData); if(b){ l.push(acc.clientName); v.push(calculateRealSpent(b.transactions)); } } });
+                    state.charts.dynamic.push(new Chart(d.querySelector('canvas').getContext('2d'), { 
+                        type: 'bar', data: { labels: l, datasets: [{ label: 'Spent', data: v, backgroundColor: '#000000', borderRadius: 2 }] }, 
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: {color: '#f3f4f6'} }, x: { grid: {display: false} } } } 
+                    }));
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error("Dashboard Error:", e); }
         }
 
         function renderClientDashboard() {
@@ -453,26 +712,120 @@
             let b = null;
             if(state.selectedMonthLabel) b = acc.budgetData.find(bd => bd.monthLabel === state.selectedMonthLabel);
             if(!b) b = getCurrentBudget(acc.budgetData);
-            if(acc.budgetData) els.clientMonthSelector.innerHTML = acc.budgetData.map(bd => `<button onclick="window.setClientMonth('${bd.monthLabel}')" class="px-3 py-1 rounded-full text-xs font-medium transition-colors border ${b && bd.monthLabel===b.monthLabel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}">${bd.monthLabel}</button>`).join('');
+            if(acc.budgetData) els.clientMonthSelector.innerHTML = acc.budgetData.map(bd => `<button onclick="window.setClientMonth('${bd.monthLabel}')" class="px-3 py-1 rounded-md text-xs font-medium transition-colors border ${b && bd.monthLabel===b.monthLabel ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}">${bd.monthLabel}</button>`).join('');
             
             if(b) {
+                state.selectedMonthLabel = b.monthLabel;
                 const lim = cleanAmount(b.monthlyLimit), sp = calculateRealSpent(b.transactions), rem = lim - sp;
                 els.cCardLimit.textContent = formatCurrency(lim); els.cCardSpent.textContent = formatCurrency(sp); els.cCardRemaining.textContent = formatCurrency(rem);
-                els.cCardRemaining.className = `text-2xl font-bold mt-1 ${rem < 0 ? 'text-rose-600' : rem < lim*0.15 ? 'text-amber-500' : 'text-emerald-600'}`;
+                els.cCardRemaining.className = `text-2xl font-bold mt-1 ${rem < 0 ? 'text-red-600' : rem < lim*0.15 ? 'text-yellow-600' : 'text-green-600'}`;
                 const pct = lim > 0 ? Math.min((sp/lim)*100, 100) : 0;
-                els.cProgressBar.style.width = pct + '%'; els.cProgressBar.className = `h-3 rounded-full transition-all duration-500 ${pct > 100 ? 'bg-rose-500' : pct > 85 ? 'bg-amber-400' : 'bg-indigo-600'}`;
+                els.cProgressBar.style.width = pct + '%'; els.cProgressBar.className = `h-3 rounded-full transition-all duration-500 ${pct > 100 ? 'bg-red-600' : pct > 85 ? 'bg-yellow-500' : 'bg-black'}`;
                 els.cUtilizationText.textContent = `${Math.round(pct)}% Used`;
                 
                 const txs = getCleanTransactions(b.transactions);
                 els.cTxCount.textContent = `${txs.length} entries`;
                 txs.sort((a,b)=>new Date(b.date)-new Date(a.date));
-                els.cTxBody.innerHTML = txs.map(tx => `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50"><td class="px-6 py-4 text-sm text-slate-600 font-mono">${tx.date}</td><td class="px-6 py-4 text-sm text-slate-500">${(!tx.description || tx.description==='undefined') ? '<span class="text-slate-400 italic">No Description</span>' : tx.description}</td><td class="px-6 py-4 text-sm text-right font-bold text-slate-900">${formatCurrency(cleanAmount(tx.amount))}</td></tr>`).join('');
+                els.cTxBody.innerHTML = txs.map(tx => `<tr class="hover:bg-gray-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-sm text-black font-mono">${tx.date}</td><td class="px-6 py-4 text-sm text-gray-600">${(!tx.description || tx.description==='undefined') ? '<span class="text-gray-400 italic">No Description</span>' : tx.description}</td><td class="px-6 py-4 text-sm text-right font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</td></tr>`).join('');
             }
         }
 
         const formatCurrency = (amt) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amt);
         function getInitials(name) { return (name||'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase(); }
         window.setClientMonth = (label) => { state.selectedMonthLabel = label; renderClientDashboard(); }
+
+        // --- MANAGE SETTINGS LOGIC ---
+        els.adminManageBtn.addEventListener('click', () => {
+            if(!state.activeAccount || !state.selectedMonthLabel) return;
+            const b = state.activeAccount.budgetData.find(bd => bd.monthLabel === state.selectedMonthLabel);
+            els.settingActiveMonth.textContent = state.selectedMonthLabel;
+            els.settingNewLimit.value = b ? cleanAmount(b.monthlyLimit) : 600;
+            els.settingsModal.classList.remove('hidden');
+        });
+        els.closeSettingsBtn.addEventListener('click', () => els.settingsModal.classList.add('hidden'));
+
+        els.saveLimitBtn.addEventListener('click', async () => {
+            if(!state.activeAccount) return;
+            const newLim = parseFloat(els.settingNewLimit.value);
+            if(isNaN(newLim) || newLim < 0) { alert("Invalid limit"); return; }
+            try {
+                const upBudget = [...state.activeAccount.budgetData];
+                const idx = upBudget.findIndex(b => b.monthLabel === state.selectedMonthLabel);
+                if(idx !== -1) {
+                    upBudget[idx].monthlyLimit = newLim;
+                    const spent = calculateRealSpent(upBudget[idx].transactions);
+                    upBudget[idx].remainingBudget = newLim - spent;
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+                    els.settingsModal.classList.add('hidden');
+                }
+            } catch(e) { console.error(e); alert("Error updating limit"); }
+        });
+
+        els.addMonthBtn.addEventListener('click', async () => {
+            if(!state.activeAccount) return;
+            const dateVal = els.settingNewMonthPicker.value;
+            const limitVal = parseFloat(els.settingNewMonthLimit.value);
+            if(!dateVal || isNaN(limitVal)) { alert("Please select date and limit"); return; }
+            try {
+                const [yr, mo] = dateVal.split('-');
+                const newLabel = `${parseInt(mo)}/1/${yr}`;
+                const upBudget = [...state.activeAccount.budgetData];
+                if(upBudget.find(b => b.monthLabel === newLabel)) { alert("Month already exists!"); return; }
+                upBudget.push({ monthLabel: newLabel, monthlyLimit: limitVal, totalSpent: 0, remainingBudget: limitVal, transactions: [] });
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+                els.settingsModal.classList.add('hidden');
+                state.selectedMonthLabel = newLabel;
+            } catch(e) { console.error(e); alert("Error adding month"); }
+        });
+
+        // --- MERGE LOGIC ---
+        const mergeEls = { modal: document.getElementById('merge-modal'), btn: document.getElementById('open-merge-btn'), close: document.getElementById('close-merge-btn'), confirm: document.getElementById('confirm-merge-btn'), source: document.getElementById('merge-source-select'), dest: document.getElementById('merge-dest-select') };
+        mergeEls.btn.addEventListener('click', () => {
+            const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => {
+                let context = "No History";
+                if (a.budgetData && a.budgetData.length > 0) {
+                    const allTxs = a.budgetData.flatMap(m => m.transactions || []);
+                    if (allTxs.length > 0) {
+                        allTxs.sort((x, y) => new Date(y.date) - new Date(x.date));
+                        const last = allTxs[0];
+                        const desc = (last.description || "Unknown").substring(0, 20);
+                        context = `${last.date}: ${desc} ($${last.amount})`;
+                    } else context = "Empty Account";
+                }
+                return `<option value="${a.id}">${a.clientName} (${a.accountId}) — [${context}]</option>`;
+            }).join('');
+            mergeEls.source.innerHTML = '<option value="">Select Source...</option>' + opts;
+            mergeEls.dest.innerHTML = '<option value="">Select Destination...</option>' + opts;
+            mergeEls.modal.classList.remove('hidden');
+        });
+        mergeEls.close.addEventListener('click', () => mergeEls.modal.classList.add('hidden'));
+        mergeEls.confirm.addEventListener('click', async () => {
+            const sId = mergeEls.source.value; const dId = mergeEls.dest.value;
+            if(!sId || !dId || sId === dId) return alert("Invalid Selection");
+            if(!confirm("WARNING: This will DELETE the Source account. Continue?")) return;
+            try {
+                const sourceAcc = state.accounts.find(a => a.id === sId);
+                const destAcc = state.accounts.find(a => a.id === dId);
+                let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || []));
+                if (sourceAcc.budgetData) {
+                    sourceAcc.budgetData.forEach(sMonth => {
+                        const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel);
+                        if (existingIdx !== -1) {
+                            const destMonth = newBudget[existingIdx];
+                            const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])];
+                            const newSpent = calculateRealSpent(combinedTx);
+                            newBudget[existingIdx].transactions = combinedTx;
+                            newBudget[existingIdx].totalSpent = newSpent;
+                            newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent;
+                        } else newBudget.push(sMonth);
+                    });
+                }
+                newBudget.sort((a,b) => new Date(a.monthLabel) - new Date(b.monthLabel));
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget, lastUpdated: new Date().toISOString() });
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId));
+                mergeEls.modal.classList.add('hidden'); alert("Merge Successful!");
+            } catch (err) { console.error(err); alert("Merge failed."); }
+        });
 
         // --- ADD TRANSACTION LOGIC ---
         els.addTxBtn.addEventListener('click', () => { els.modalDate.valueAsDate = new Date(); els.modalDesc.value=""; els.modalAmount.value=""; els.txModal.classList.remove('hidden'); });
@@ -482,21 +835,16 @@
             const amt=parseFloat(els.modalAmount.value), desc=els.modalDesc.value, date=els.modalDate.value;
             if(isNaN(amt) || !date) { alert("Invalid inputs"); return; }
             try {
-                // Find correct month bucket based on DATE entered
                 const txDate = new Date(date);
                 const bIdx = state.activeAccount.budgetData.findIndex(b => {
                     const bDate = new Date(b.monthLabel);
                     return bDate.getMonth() === txDate.getMonth() && bDate.getFullYear() === txDate.getFullYear();
                 });
-                
-                if(bIdx===-1) { alert("No budget found for this date."); return; }
-                
+                if(bIdx===-1) { alert("No budget found for this date. Add the month first via Settings."); return; }
                 const newTx = { date, description: desc||'Manual Entry', amount: amt, id: Date.now().toString() };
                 const upBudget = [...state.activeAccount.budgetData];
                 upBudget[bIdx].transactions = [...(upBudget[bIdx].transactions||[]), newTx];
                 upBudget[bIdx].totalSpent = (upBudget[bIdx].totalSpent||0) + amt;
-                
-                // *** UPDATED TO PUBLIC PATH ***
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
                 els.txModal.classList.add('hidden');
             } catch(e) { console.error(e); alert("Error saving"); }
@@ -511,7 +859,6 @@
                     const batch = data.map(async (c) => {
                         const id = `client_${(c.clientName||'').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${c.accountId||'000'}`;
                         const exist = state.accounts.find(a => a.id === id);
-                        // *** UPDATED TO PUBLIC PATH ***
                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id), {
                             clientName: c.clientName, organization: c.organization, accountId: c.accountId, budgetData: c.budgetData, lastUpdated: new Date().toISOString(),
                             auth_password: exist ? exist.auth_password : 'Password', auth_password_changed: exist ? exist.auth_password_changed : false
