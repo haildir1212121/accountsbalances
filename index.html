@@ -59,7 +59,7 @@
 
         <aside class="flex flex-col flex-shrink-0 w-20 md:w-64 bg-white border-r border-black z-30">
             <button onclick="window.resetToOverview()" class="flex items-center justify-center md:justify-start md:px-6 h-16 border-b border-black flex-shrink-0 hover:bg-gray-50 transition-colors w-full">
-                <i class="ph-fill ph-wallet text-3xl text-black"></i><span class="ml-2 text-lg font-bold hidden md:block">Balances</span>
+                <i class="ph-fill ph-wallet text-3xl text-black"></i><span class="ml-2 text-lg font-bold hidden md:block">OT: LEDGER</span>
             </button>
             <div id="admin-tools" class="p-4 border-b border-gray-200 hidden md:block">
                 <div class="relative mb-3"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i><input type="text" id="search-input" placeholder="Search accounts..." class="w-full bg-gray-50 border border-gray-300 text-black text-xs rounded-md pl-10 p-2 focus:border-black focus:ring-0"></div>
@@ -97,13 +97,13 @@
                 </div>
 
                 <div id="admin-dashboard-view" class="hidden space-y-8 max-w-7xl mx-auto">
-                    <div id="account-cards-container" class="grid grid-cols-1 gap-5 md:grid-cols-3"></div>
+                    <div id="account-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
                     
-                    <div class="rounded-lg overflow-hidden w-full md:flex bg-white border border-black">
-                        <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative">
+                    <div class="rounded-lg overflow-hidden w-full flex flex-col md:flex-row bg-white border border-black">
+                        <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative min-h-[200px]">
                             <canvas id="tickerChart" class="w-full relative z-10"></canvas>
                         </div>
-                        <div class="flex w-full md:w-1/2 p-8 bg-white text-black items-center border-l border-black">
+                        <div class="flex w-full md:w-1/2 p-6 md:p-8 bg-white text-black items-center border-t md:border-t-0 md:border-l border-black">
                             <div class="w-full">
                                 <h3 class="text-lg font-bold leading-tight" id="ticker-title">Activity</h3>
                                 <div class="flex w-full items-end mb-6"><span class="block leading-none text-4xl font-bold" id="ticker-current-price">$0.00</span><span class="block leading-5 text-sm ml-4 font-bold" id="ticker-change"></span></div>
@@ -119,29 +119,27 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-lg border border-black">
-                        <div class="mb-4"><h3 class="text-lg font-bold text-black">Budget Performance</h3><p class="text-xs text-gray-500">Utilization for current & previous 2 months.</p></div>
-                        <div id="radarChartDiv" class="w-full h-80"></div>
-                    </div>
-
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Top Spenders</h4><div class="h-64"><canvas id="topSpendersChart"></canvas></div></div>
                         <div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div>
                     </div>
+                    
                     <div class="border-t border-gray-200 pt-6"><h3 class="text-lg font-bold mb-4">Detailed Breakdown</h3><div id="dynamic-charts-area" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
                 </div>
 
                 <div id="client-dashboard-view" class="hidden space-y-6 max-w-7xl mx-auto">
                     <div class="flex justify-end mb-2"><button id="admin-manage-btn" class="hidden text-xs bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-800 flex items-center space-x-1"><i class="ph-bold ph-gear"></i><span>Manage Budget</span></button></div>
-                    <div class="grid grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Limit</dt><dd id="c-card-limit" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Remaining</dt><dd id="c-card-remaining" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white rounded-lg border border-gray-200 p-5 flex flex-col justify-center"><div class="flex justify-between items-end mb-2"><h4 class="text-sm font-bold text-black">Current Month Utilization</h4><span id="c-utilization-text" class="text-xs text-gray-500 font-bold">0%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-black h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
                         <div class="bg-white p-4 rounded-lg border border-black relative overflow-hidden"><div class="absolute top-3 left-4 z-10"><h3 class="text-xs font-bold text-black uppercase tracking-wide">3-Month Performance</h3></div><div id="clientRadarChartDiv" class="w-full h-48"></div></div>
                     </div>
+                    
                     <div class="flex items-center space-x-2 overflow-x-auto pb-2" id="client-month-selector"></div>
                     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between"><h3 class="text-base font-bold text-black">Transactions</h3><div class="flex items-center space-x-3"><button id="add-tx-btn" class="text-xs flex items-center space-x-1 bg-white hover:bg-gray-50 text-black border border-gray-300 px-3 py-1.5 rounded-md font-bold transition-colors"><i class="ph-bold ph-plus"></i><span>Add</span></button><span id="c-tx-count" class="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">0</span></div></div>
@@ -162,19 +160,14 @@
             <div class="bg-white w-full max-w-2xl rounded-lg border border-black p-6 h-[80vh] flex flex-col">
                 <h3 class="text-lg font-bold text-black mb-1">Data Tools</h3>
                 <p class="text-xs text-gray-500 mb-4">Merge duplicate accounts OR move specific transactions.</p>
-                
                 <div class="flex-shrink-0 grid grid-cols-2 gap-4 mb-4">
                     <div><label class="text-xs font-bold uppercase text-red-600">From (Source)</label><select id="merge-source-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div>
                     <div><label class="text-xs font-bold uppercase text-green-600">To (Destination)</label><select id="merge-dest-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div>
                 </div>
-
                 <div class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50 mb-4 custom-scroll">
                     <div id="transaction-list-header" class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 hidden">Select Transactions to Move:</div>
-                    <div id="transaction-list-container" class="space-y-1">
-                        <div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div>
-                    </div>
+                    <div id="transaction-list-container" class="space-y-1"><div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div></div>
                 </div>
-
                 <div class="flex-shrink-0 mt-2 flex justify-between items-center pt-4 border-t border-gray-100">
                     <button id="close-merge-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Cancel</button>
                     <div class="flex space-x-2">
@@ -309,7 +302,7 @@
                 state.charts.trend = new Chart(document.getElementById('tickerChart').getContext('2d'), { type:'line', data:{labels:labels, datasets:[{data:dataPoints, borderColor:"rgba(255,255,255,1)", backgroundColor:"rgba(255,255,255,0.1)", pointBackgroundColor:"rgba(255,255,255,1)", borderWidth:2, tension:0.3, fill:true}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, layout:{padding:{right:10,left:10,top:10,bottom:10}}, scales:{x:{ticks:{color:"rgba(255,255,255,0.8)",font:{size:10}},grid:{color:"rgba(255,255,255,0.1)"}},y:{display:false}}} });
                 
                 const sortedIds = Object.keys(accountStats).sort((a,b)=>parseInt(a)-parseInt(b));
-                getEl('accountCardsContainer').innerHTML = sortedIds.map(id => { const s=accountStats[id], isActive=state.filterAccountId==id, rem=s.budget-s.spent; return `<div onclick="window.selectGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive?'border-black bg-gray-50':'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400"><div class="flex justify-between items-start mb-3"><h3 class="text-lg font-bold text-black">Account ${id}</h3><span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300">${s.clients} Clients</span></div><div class="grid grid-cols-3 gap-2 mt-2 text-center divide-x divide-gray-100"><div><p class="text-[10px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-sm font-bold text-black">${formatCurrency(s.budget)}</p></div><div><p class="text-[10px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-sm font-bold text-black">${formatCurrency(s.spent)}</p></div><div><p class="text-[10px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-sm font-bold ${rem<0?'text-red-600':'text-green-600'}">${formatCurrency(rem)}</p></div></div></div>`; }).join('');
+                getEl('accountCardsContainer').innerHTML = sortedIds.map(id => { const s=accountStats[id], isActive=state.filterAccountId==id, rem=s.budget-s.spent; return `<div onclick="window.selectGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive?'border-black bg-gray-50':'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400"><div class="flex justify-between items-start mb-3"><h3 class="text-lg font-bold text-black">Account ${id}</h3><span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300 flex-wrap overflow-hidden">${s.clients} Clients</span></div><div class="grid grid-cols-3 gap-1 mt-2 text-center divide-x divide-gray-100"><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.budget)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.spent)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-xs font-bold truncate ${rem<0?'text-red-600':'text-green-600'}">${formatCurrency(rem)}</p></div></div></div>`; }).join('');
                 
                 cSpends.sort((a,b)=>b.amount-a.amount);
                 state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { type:'bar', indexAxis:'y', data:{labels:cSpends.slice(0,5).map(c=>c.name), datasets:[{data:cSpends.slice(0,5).map(c=>c.amount), backgroundColor:'#000000', borderRadius:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false},y:{grid:{display:false}}}} });
@@ -439,7 +432,7 @@
                 const sAcc = state.accounts.find(a => a.id === sId); const dAcc = state.accounts.find(a => a.id === dId);
                 const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData)); const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
                 
-                // Process in reverse to avoid index shifting issues if removing multiple from same month
+                // Process in reverse to avoid index shifting
                 const toMove = Array.from(checkboxes).map(cb => cb.value.split('|').map(Number)).sort((a,b) => b[1] - a[1]); // sort by tx index desc
 
                 toMove.forEach(([mIdx, tIdx]) => {
@@ -456,7 +449,6 @@
                     let dMIdx = dBudget.findIndex(b => { const d = new Date(b.monthLabel); return d.getMonth() === txDate.getMonth() && d.getFullYear() === txDate.getFullYear(); });
                     
                     if(dMIdx === -1) {
-                        // Create month if missing
                         dBudget.push({ 
                             monthLabel: `${txDate.getMonth()+1}/1/${txDate.getFullYear()}`, 
                             monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] 
