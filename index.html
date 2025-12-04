@@ -513,8 +513,8 @@
 
         function renderAdminDashboard() {
             try {
-                els.headerTitle.textContent = state.filterAccountId ? `Overview - Account ${state.filterAccountId}` : "Executive Dashboard";
-                els.headerSubtitle.textContent = "Global Financial Overview";
+                els.headerTitle.textContent = state.filterAccountId ? `Overview - Account ${state.filterAccountId}` : "Oregon Taxi";
+                els.headerSubtitle.textContent = "Global Financial Tracker";
                 
                 if(state.charts.trend) state.charts.trend.destroy(); 
                 if(state.charts.topSpenders) state.charts.topSpenders.destroy(); 
