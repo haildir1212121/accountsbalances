@@ -57,15 +57,16 @@
             </div>
         </div>
 
-        <aside class="flex flex-col flex-shrink-0 w-20 md:w-64 bg-white border-r border-black z-30">
+        <aside id="sidebar-primary" class="flex flex-col flex-shrink-0 w-20 md:w-64 bg-white border-r border-black z-30">
             <button onclick="window.resetToOverview()" class="flex items-center justify-center md:justify-start md:px-6 h-16 border-b border-black flex-shrink-0 hover:bg-gray-50 transition-colors w-full">
-                <i class="ph-fill ph-wallet text-3xl text-black"></i><span class="ml-2 text-lg font-bold hidden md:block">OT: LEDGER</span>
+                <i class="ph-fill ph-wallet text-3xl text-black"></i><span class="ml-2 text-lg font-bold hidden md:block">Balances</span>
             </button>
             <div id="admin-tools" class="p-4 border-b border-gray-200 hidden md:block">
                 <div class="relative mb-3"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i><input type="text" id="search-input" placeholder="Search accounts..." class="w-full bg-gray-50 border border-gray-300 text-black text-xs rounded-md pl-10 p-2 focus:border-black focus:ring-0"></div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
                     <button id="upload-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Upload JSON"><i class="ph ph-upload-simple text-lg"></i></button>
-                    <button id="open-merge-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Data Tools"><i class="ph ph-wrench text-lg"></i></button>
+                    <button id="open-merge-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Merge / Move"><i class="ph ph-arrows-merge text-lg"></i></button>
+                    <button id="open-delete-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-red-50 text-red-600 px-2 py-2 rounded-md text-xs font-bold" title="Delete Client"><i class="ph ph-trash text-lg"></i></button>
                     <input type="file" id="json-upload" accept=".json" class="hidden" />
                 </div>
             </div>
@@ -77,7 +78,7 @@
             </div>
         </aside>
 
-        <div x-show="isSecondSidebarOpen" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="-translate-x-full opacity-0" x-transition:enter-end="translate-x-0 opacity-100" x-transition:leave="transition ease-in duration-200 transform" x-transition:leave-start="translate-x-0 opacity-100" x-transition:leave-end="-translate-x-full opacity-0" class="flex flex-col w-64 bg-gray-50 border-r border-black z-20 flex-shrink-0" style="display: none;">
+        <div id="sidebar-secondary" x-show="isSecondSidebarOpen" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="-translate-x-full opacity-0" x-transition:enter-end="translate-x-0 opacity-100" x-transition:leave="transition ease-in duration-200 transform" x-transition:leave-start="translate-x-0 opacity-100" x-transition:leave-end="-translate-x-full opacity-0" class="flex flex-col w-64 bg-gray-50 border-r border-black z-20 flex-shrink-0" style="display: none;">
             <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-gray-50"><h2 class="text-sm font-bold text-black uppercase tracking-wide" id="col-2-title">Clients</h2><button @click="isSecondSidebarOpen = false" class="text-gray-400 hover:text-black md:hidden"><i class="ph-bold ph-x"></i></button></div>
             <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="col-2-list"></div>
         </div>
@@ -87,7 +88,10 @@
                 
                 <header class="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
                     <div><h1 id="header-title" class="text-2xl font-bold text-black tracking-tight">Overview</h1><p id="header-subtitle" class="text-sm text-gray-500 mt-1">Financial Snapshot</p></div>
-                    <div id="real-time-date" class="text-sm font-bold text-black border border-black px-3 py-1 rounded-md hidden sm:block"></div>
+                    <div class="flex items-center space-x-4">
+                        <div id="real-time-date" class="text-sm font-bold text-black border border-black px-3 py-1 rounded-md hidden sm:block"></div>
+                        <button id="client-logout-btn" onclick="window.location.reload()" class="hidden text-xs font-bold text-red-600 border border-red-200 bg-red-50 px-3 py-2 rounded-md hover:bg-red-100 transition-colors flex items-center"><i class="ph-bold ph-sign-out mr-1"></i> Logout</button>
+                    </div>
                 </header>
 
                 <div id="empty-state" class="hidden flex flex-col items-center justify-center h-[60vh] text-center">
@@ -98,32 +102,12 @@
 
                 <div id="admin-dashboard-view" class="hidden space-y-8 max-w-7xl mx-auto">
                     <div id="account-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
-                    
-                    <div class="rounded-lg overflow-hidden w-full flex flex-col md:flex-row bg-white border border-black">
-                        <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative min-h-[200px]">
-                            <canvas id="tickerChart" class="w-full relative z-10"></canvas>
-                        </div>
-                        <div class="flex w-full md:w-1/2 p-6 md:p-8 bg-white text-black items-center border-t md:border-t-0 md:border-l border-black">
-                            <div class="w-full">
-                                <h3 class="text-lg font-bold leading-tight" id="ticker-title">Activity</h3>
-                                <div class="flex w-full items-end mb-6"><span class="block leading-none text-4xl font-bold" id="ticker-current-price">$0.00</span><span class="block leading-5 text-sm ml-4 font-bold" id="ticker-change"></span></div>
-                                <div class="grid grid-cols-2 gap-4 text-xs">
-                                    <div class="flex justify-between border-b border-gray-100 pb-1"><span>Total Limit</span><span class="font-bold font-mono" id="ticker-open">$0</span></div>
-                                    <div class="flex justify-between border-b border-gray-100 pb-1"><span>Tx Count</span><span class="font-bold font-mono" id="ticker-cap">0</span></div>
-                                    <div class="flex justify-between border-b border-gray-100 pb-1"><span>Highest</span><span class="font-bold font-mono" id="ticker-high">$0</span></div>
-                                    <div class="flex justify-between border-b border-gray-100 pb-1"><span>Avg</span><span class="font-bold font-mono" id="ticker-ratio">$0</span></div>
-                                    <div class="flex justify-between"><span>Lowest</span><span class="font-bold font-mono" id="ticker-low">$0</span></div>
-                                    <div class="flex justify-between"><span>Remain</span><span class="font-bold font-mono" id="ticker-dividend">$0</span></div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="rounded-lg overflow-hidden w-full md:flex bg-white border border-black">
+                        <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative"><canvas id="tickerChart" class="w-full relative z-10"></canvas></div>
+                        <div class="flex w-full md:w-1/2 p-8 bg-white text-black items-center border-l border-black"><div class="w-full"><h3 class="text-lg font-bold leading-tight" id="ticker-title">Activity</h3><div class="flex w-full items-end mb-6"><span class="block leading-none text-4xl font-bold" id="ticker-current-price">$0.00</span><span class="block leading-5 text-sm ml-4 font-bold" id="ticker-change"></span></div><div class="grid grid-cols-2 gap-4 text-xs"><div class="flex justify-between border-b border-gray-100 pb-1"><span>Total Limit</span><span class="font-bold font-mono" id="ticker-open">$0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Tx Count</span><span class="font-bold font-mono" id="ticker-cap">0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Highest</span><span class="font-bold font-mono" id="ticker-high">$0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Avg</span><span class="font-bold font-mono" id="ticker-ratio">$0</span></div><div class="flex justify-between"><span>Lowest</span><span class="font-bold font-mono" id="ticker-low">$0</span></div><div class="flex justify-between"><span>Remain</span><span class="font-bold font-mono" id="ticker-dividend">$0</span></div></div></div></div>
                     </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Top Spenders</h4><div class="h-64"><canvas id="topSpendersChart"></canvas></div></div>
-                        <div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div>
-                    </div>
-                    
+                    <div class="bg-white p-6 rounded-lg border border-black"><div class="mb-4"><h3 class="text-lg font-bold text-black">Budget Performance</h3><p class="text-xs text-gray-500">Utilization for current & previous 2 months.</p></div><div id="radarChartDiv" class="w-full h-80"></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Top Spenders</h4><div class="h-64"><canvas id="topSpendersChart"></canvas></div></div><div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div></div>
                     <div class="border-t border-gray-200 pt-6"><h3 class="text-lg font-bold mb-4">Detailed Breakdown</h3><div id="dynamic-charts-area" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
                 </div>
 
@@ -134,12 +118,10 @@
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Remaining</dt><dd id="c-card-remaining" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-white rounded-lg border border-gray-200 p-5 flex flex-col justify-center"><div class="flex justify-between items-end mb-2"><h4 class="text-sm font-bold text-black">Current Month Utilization</h4><span id="c-utilization-text" class="text-xs text-gray-500 font-bold">0%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-black h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
                         <div class="bg-white p-4 rounded-lg border border-black relative overflow-hidden"><div class="absolute top-3 left-4 z-10"><h3 class="text-xs font-bold text-black uppercase tracking-wide">3-Month Performance</h3></div><div id="clientRadarChartDiv" class="w-full h-48"></div></div>
                     </div>
-                    
                     <div class="flex items-center space-x-2 overflow-x-auto pb-2" id="client-month-selector"></div>
                     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between"><h3 class="text-base font-bold text-black">Transactions</h3><div class="flex items-center space-x-3"><button id="add-tx-btn" class="text-xs flex items-center space-x-1 bg-white hover:bg-gray-50 text-black border border-gray-300 px-3 py-1.5 rounded-md font-bold transition-colors"><i class="ph-bold ph-plus"></i><span>Add</span></button><span id="c-tx-count" class="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">0</span></div></div>
@@ -151,33 +133,9 @@
     </div>
 
     <div id="tx-modal" class="fixed inset-0 z-[60] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-lg border border-black shadow-none p-6"><h3 class="text-lg font-bold text-black mb-4">Log Transaction</h3><div class="space-y-4"><input type="date" id="modal-date" class="block w-full rounded-md border-gray-300 border p-2"><input type="text" id="modal-desc" placeholder="Description" class="block w-full rounded-md border-gray-300 border p-2"><input type="number" id="modal-amount" step="0.01" placeholder="Amount" class="block w-full rounded-md border-gray-300 border p-2"></div><div class="mt-6 flex justify-end space-x-2"><button id="close-modal-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold text-black">Cancel</button><button id="save-tx-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold">Save</button></div></div></div></div>
-    
     <div id="settings-modal" class="fixed inset-0 z-[70] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-lg border border-black p-6"><h3 class="text-lg font-bold text-black mb-4">Budget Settings</h3><div class="space-y-6"><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Edit Limit</h4><div class="flex space-x-2"><div id="setting-active-month" class="bg-gray-100 p-2 rounded text-sm font-mono font-bold"></div><input type="number" id="setting-new-limit" class="block w-full rounded-md border-gray-300 p-2 text-sm" placeholder="New Limit"></div><button id="save-limit-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Update</button></div><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Add Month</h4><div class="flex space-x-2"><input type="month" id="setting-new-month-picker" class="block w-full rounded-md border-gray-300 p-2 text-sm"><input type="number" id="setting-new-month-limit" class="w-24 rounded-md border-gray-300 p-2 text-sm" value="600"></div><button id="add-month-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Add Month</button></div></div><div class="mt-6 flex justify-end"><button id="close-settings-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Close</button></div></div></div></div>
-
-    <div id="merge-modal" class="fixed inset-0 z-[80] hidden">
-        <div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div>
-        <div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-2xl rounded-lg border border-black p-6 h-[80vh] flex flex-col">
-                <h3 class="text-lg font-bold text-black mb-1">Data Tools</h3>
-                <p class="text-xs text-gray-500 mb-4">Merge duplicate accounts OR move specific transactions.</p>
-                <div class="flex-shrink-0 grid grid-cols-2 gap-4 mb-4">
-                    <div><label class="text-xs font-bold uppercase text-red-600">From (Source)</label><select id="merge-source-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div>
-                    <div><label class="text-xs font-bold uppercase text-green-600">To (Destination)</label><select id="merge-dest-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div>
-                </div>
-                <div class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50 mb-4 custom-scroll">
-                    <div id="transaction-list-header" class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 hidden">Select Transactions to Move:</div>
-                    <div id="transaction-list-container" class="space-y-1"><div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div></div>
-                </div>
-                <div class="flex-shrink-0 mt-2 flex justify-between items-center pt-4 border-t border-gray-100">
-                    <button id="close-merge-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Cancel</button>
-                    <div class="flex space-x-2">
-                        <button id="move-tx-btn" class="px-4 py-2 bg-white border border-black text-black rounded-md text-sm font-bold hover:bg-gray-50 hidden">Move Selected</button>
-                        <button id="confirm-merge-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">Merge & Delete Source</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="merge-modal" class="fixed inset-0 z-[80] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-2xl rounded-lg border border-black p-6 h-[80vh] flex flex-col"><h3 class="text-lg font-bold text-black mb-1">Data Tools</h3><p class="text-xs text-gray-500 mb-4">Merge duplicate accounts OR move specific transactions.</p><div class="flex-shrink-0 grid grid-cols-2 gap-4 mb-4"><div><label class="text-xs font-bold uppercase text-red-600">From (Source)</label><select id="merge-source-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div><div><label class="text-xs font-bold uppercase text-green-600">To (Destination)</label><select id="merge-dest-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div></div><div class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50 mb-4 custom-scroll"><div id="transaction-list-header" class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 hidden">Select Transactions to Move:</div><div id="transaction-list-container" class="space-y-1"><div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div></div></div><div class="flex-shrink-0 mt-2 flex justify-between items-center pt-4 border-t border-gray-100"><button id="close-merge-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Cancel</button><div class="flex space-x-2"><button id="move-tx-btn" class="px-4 py-2 bg-white border border-black text-black rounded-md text-sm font-bold hover:bg-gray-50 hidden">Move Selected</button><button id="confirm-merge-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">Merge & Delete Source</button></div></div></div></div></div>
+    <div id="delete-modal" class="fixed inset-0 z-[90] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-lg border border-red-600 p-6 shadow-xl"><div class="flex items-center space-x-3 mb-4 text-red-600"><i class="ph-fill ph-warning-circle text-3xl"></i><h3 class="text-lg font-bold text-black">Delete Client Account</h3></div><p class="text-sm text-gray-600 mb-4">This action is <span class="font-bold">irreversible</span>. All transaction history and budget data for this client will be wiped from the database.</p><div class="space-y-2"><label class="text-xs font-bold uppercase text-gray-500">Select Client to Delete</label><select id="delete-client-select" class="block w-full rounded-md border-gray-300 p-2 text-sm focus:border-red-500 focus:ring-red-500"></select></div><div class="mt-6 flex justify-end space-x-2"><button id="close-delete-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 shadow-sm">Delete Forever</button></div></div></div></div>
 
     <script>
         const setup = () => {
@@ -207,6 +165,7 @@
         const els = {
             col1List: 'col-1-list', col2List: 'col-2-list', col2Title: 'col-2-title', clientCount: 'client-count',
             adminView: 'admin-dashboard-view', clientView: 'client-dashboard-view', emptyState: 'empty-state', adminTools: 'admin-tools',
+            sidebarPrimary: 'sidebar-primary', sidebarSecondary: 'sidebar-secondary', clientLogoutBtn: 'client-logout-btn',
             tickerCurrentPrice: 'ticker-current-price', tickerChange: 'ticker-change', tickerOpen: 'ticker-open', tickerCap: 'ticker-cap', tickerHigh: 'ticker-high', tickerLow: 'ticker-low', tickerRatio: 'ticker-ratio', tickerDividend: 'ticker-dividend', tickerTitle: 'ticker-title',
             accountCardsContainer: 'account-cards-container', recentActivityList: 'recent-activity-list', dynamicChartsArea: 'dynamic-charts-area', heatmapContainer: 'heatmap-container',
             headerTitle: 'header-title', headerSubtitle: 'header-subtitle',
@@ -214,6 +173,7 @@
             settingsModal: 'settings-modal', adminManageBtn: 'admin-manage-btn', closeSettingsBtn: 'close-settings-btn', settingActiveMonth: 'setting-active-month', settingNewLimit: 'setting-new-limit', saveLimitBtn: 'save-limit-btn', settingNewMonthPicker: 'setting-new-month-picker', settingNewMonthLimit: 'setting-new-month-limit', addMonthBtn: 'add-month-btn',
             mergeModal: 'merge-modal', openMergeBtn: 'open-merge-btn', closeMergeBtn: 'close-merge-btn', confirmMergeBtn: 'confirm-merge-btn', mergeSource: 'merge-source-select', mergeDest: 'merge-dest-select',
             moveTxBtn: 'move-tx-btn', txListContainer: 'transaction-list-container', txListHeader: 'transaction-list-header',
+            deleteModal: 'delete-modal', openDeleteBtn: 'open-delete-btn', closeDeleteBtn: 'close-delete-btn', confirmDeleteBtn: 'confirm-delete-btn', deleteSelect: 'delete-client-select',
             uploadBtn: 'upload-btn', uploadInput: 'json-upload', searchInput: 'search-input',
             cCardLimit: 'c-card-limit', cCardSpent: 'c-card-spent', cCardRemaining: 'c-card-remaining', cProgressBar: 'c-progress-bar', cUtilizationText: 'c-utilization-text', cTxBody: 'c-tx-body', cTxCount: 'c-tx-count', clientMonthSelector: 'client-month-selector'
         };
@@ -232,10 +192,23 @@
                 state.accounts = accounts;
                 state.loading = false;
                 document.getElementById('login-btn').innerHTML = 'Sign In'; 
-                if(state.currentUser) { renderSidebar(); if(state.currentUser.role === 'admin') { if(state.activeAccount) renderClientDashboard(); else renderAdminDashboard(); } }
+                if(state.currentUser) { 
+                    if(state.currentUser.role === 'admin') { 
+                        renderSidebar();
+                        if(state.activeAccount) renderClientDashboard(); else renderAdminDashboard(); 
+                    } else if (state.currentUser.role === 'client') {
+                         const fresh = state.accounts.find(a => a.id === state.currentUser.id);
+                         if(fresh) {
+                            state.currentUser.data = fresh;
+                            state.activeAccount = fresh;
+                            updateUI();
+                         }
+                    }
+                }
             });
         }
 
+        // --- RADAR ---
         function renderRadarChart(data, elementId, chartRef) {
             if (state.charts[chartRef]) { state.charts[chartRef].dispose(); }
             am4core.useTheme(am4themes_animated);
@@ -315,6 +288,10 @@
         // --- CLIENT DASHBOARD ---
         function renderClientDashboard() {
             const acc = state.activeAccount; if(!acc) return;
+            // Update Header Name
+            getEl('headerTitle').textContent = `Welcome, ${acc.clientName}`;
+            getEl('headerSubtitle').textContent = `Account #${acc.accountId} • ${acc.organization || ''}`;
+
             let b = null; if(state.selectedMonthLabel) b = acc.budgetData.find(bd => bd.monthLabel === state.selectedMonthLabel); if(!b) b = getCurrentBudget(acc.budgetData);
             if(acc.budgetData) getEl('clientMonthSelector').innerHTML = acc.budgetData.map(bd => `<button onclick="window.setClientMonth('${bd.monthLabel}')" class="px-3 py-1 rounded-md text-xs font-medium transition-colors border ${b && bd.monthLabel===b.monthLabel ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}">${bd.monthLabel}</button>`).join('');
             if(b) {
@@ -333,6 +310,8 @@
 
         // --- RENDER SIDEBAR ---
         function renderSidebar() {
+            if (state.currentUser && state.currentUser.role === 'client') return; // DO NOT RENDER SIDEBAR FOR CLIENTS
+
             const filtered = state.accounts.filter(acc => (acc.clientName||'').toLowerCase().includes(state.searchQuery) || (acc.accountId||'').toString().includes(state.searchQuery));
             const grouped = filtered.reduce((g, acc) => { const id = acc.accountId || 'Unassigned'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {});
             const ids = Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b));
@@ -375,14 +354,51 @@
             if (p !== (match.auth_password || 'Password')) { document.getElementById('login-error').textContent="Bad password"; document.getElementById('login-error').classList.remove('hidden'); return; }
             state.currentUser = {role:'client', name:match.clientName, id:match.id, data:match}; updateUI();
         });
+        
         function updateUI() {
             document.getElementById('auth-layer').classList.add('hidden');
             document.getElementById('logged-user-name').textContent = state.currentUser.name;
             document.getElementById('user-role').textContent = state.currentUser.role.toUpperCase();
             document.getElementById('user-avatar').textContent = getInitials(state.currentUser.name);
-            renderSidebar();
-            if(state.currentUser.role === 'client') { state.activeAccount=state.currentUser.data; getEl('adminTools').classList.add('hidden'); getEl('adminView').classList.add('hidden'); getEl('clientView').classList.remove('hidden'); getEl('adminManageBtn').classList.add('hidden'); renderClientDashboard(); } 
-            else { getEl('adminTools').classList.remove('hidden'); if(state.accounts.length>0) { getEl('emptyState').classList.add('hidden'); getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } else getEl('emptyState').classList.remove('hidden'); }
+            
+            // *** CLIENT ROLE LOGIC ***
+            if(state.currentUser.role === 'client') { 
+                state.activeAccount = state.currentUser.data;
+                
+                // 1. Hide Sidebars completely
+                getEl('sidebarPrimary').classList.add('hidden');
+                getEl('sidebarSecondary').classList.add('hidden');
+                
+                // 2. Show Header Logout
+                getEl('clientLogoutBtn').classList.remove('hidden');
+                
+                // 3. Hide Admin Views
+                getEl('adminView').classList.add('hidden'); 
+                getEl('adminManageBtn').classList.add('hidden'); 
+                
+                // 4. Show Client View
+                getEl('clientView').classList.remove('hidden'); 
+                renderClientDashboard(); 
+            } 
+            // *** ADMIN ROLE LOGIC ***
+            else { 
+                // 1. Show Sidebars
+                getEl('sidebarPrimary').classList.remove('hidden');
+                
+                // 2. Hide Header Logout (Admin uses sidebar logout)
+                getEl('clientLogoutBtn').classList.add('hidden');
+
+                getEl('adminTools').classList.remove('hidden'); 
+                renderSidebar(); // Re-render sidebar list
+                
+                if(state.accounts.length>0) { 
+                    getEl('emptyState').classList.add('hidden'); 
+                    getEl('adminView').classList.remove('hidden'); 
+                    renderAdminDashboard(); 
+                } else {
+                    getEl('emptyState').classList.remove('hidden'); 
+                }
+            }
         }
 
         safeListen('searchInput', 'input', (e) => { state.searchQuery = e.target.value.toLowerCase().trim(); renderSidebar(); });
@@ -431,41 +447,25 @@
             try {
                 const sAcc = state.accounts.find(a => a.id === sId); const dAcc = state.accounts.find(a => a.id === dId);
                 const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData)); const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
-                
-                // Process in reverse to avoid index shifting
                 const toMove = Array.from(checkboxes).map(cb => cb.value.split('|').map(Number)).sort((a,b) => b[1] - a[1]); // sort by tx index desc
 
                 toMove.forEach(([mIdx, tIdx]) => {
                     const tx = sBudget[mIdx].transactions[tIdx];
-                    
-                    // Remove from Source
                     sBudget[mIdx].transactions.splice(tIdx, 1);
                     sBudget[mIdx].totalSpent -= cleanAmount(tx.amount);
                     sBudget[mIdx].remainingBudget += cleanAmount(tx.amount);
 
-                    // Add to Dest
                     const txDate = new Date(tx.date);
-                    // Find matching month in Dest
                     let dMIdx = dBudget.findIndex(b => { const d = new Date(b.monthLabel); return d.getMonth() === txDate.getMonth() && d.getFullYear() === txDate.getFullYear(); });
-                    
-                    if(dMIdx === -1) {
-                        dBudget.push({ 
-                            monthLabel: `${txDate.getMonth()+1}/1/${txDate.getFullYear()}`, 
-                            monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] 
-                        });
-                        dMIdx = dBudget.length - 1;
-                    }
-                    
+                    if(dMIdx === -1) { dBudget.push({ monthLabel: `${txDate.getMonth()+1}/1/${txDate.getFullYear()}`, monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] }); dMIdx = dBudget.length - 1; }
                     if(!dBudget[dMIdx].transactions) dBudget[dMIdx].transactions = [];
                     dBudget[dMIdx].transactions.push(tx);
                     dBudget[dMIdx].totalSpent += cleanAmount(tx.amount);
                     dBudget[dMIdx].remainingBudget = cleanAmount(dBudget[dMIdx].monthlyLimit) - dBudget[dMIdx].totalSpent;
                 });
 
-                // Update Docs
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId), { budgetData: sBudget });
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: dBudget });
-                
                 getEl('mergeModal').classList.add('hidden'); alert("Transactions Moved Successfully.");
             } catch(e) { console.error(e); alert("Move Failed."); }
         });
@@ -473,6 +473,26 @@
         // 3. Full Merge
         safeListen('confirmMergeBtn', 'click', async () => { const sId = getEl('mergeSource').value; const dId = getEl('mergeDest').value; if(!sId || !dId || sId === dId) return alert("Invalid Selection"); if(!confirm("DELETE source account?")) return; try { const sourceAcc = state.accounts.find(a => a.id === sId); const destAcc = state.accounts.find(a => a.id === dId); let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || [])); if (sourceAcc.budgetData) { sourceAcc.budgetData.forEach(sMonth => { const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel); if (existingIdx !== -1) { const destMonth = newBudget[existingIdx]; const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])]; const newSpent = calculateRealSpent(combinedTx); newBudget[existingIdx].transactions = combinedTx; newBudget[existingIdx].totalSpent = newSpent; newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent; } else newBudget.push(sMonth); }); } newBudget.sort((a,b) => new Date(a.monthLabel) - new Date(b.monthLabel)); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget }); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId)); getEl('mergeModal').classList.add('hidden'); alert("Merged"); } catch (err) { alert("Merge failed"); } });
         
+        // DELETE CLIENT LOGIC
+        safeListen('openDeleteBtn', 'click', () => { 
+            const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`).join(''); 
+            getEl('deleteSelect').innerHTML = '<option value="">Select Client...</option>' + opts; 
+            getEl('deleteModal').classList.remove('hidden'); 
+        });
+        safeListen('closeDeleteBtn', 'click', () => getEl('deleteModal').classList.add('hidden'));
+        safeListen('confirmDeleteBtn', 'click', async () => {
+            const id = getEl('deleteSelect').value;
+            if (!id) return alert("Please select a client.");
+            if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id));
+                getEl('deleteModal').classList.add('hidden');
+                if (state.activeAccount && state.activeAccount.id === id) window.resetToOverview();
+                alert("Client deleted successfully.");
+            } catch (err) { console.error(err); alert("Error deleting client."); }
+        });
+
+        // Settings Listeners
         safeListen('adminManageBtn', 'click', () => { if(!state.activeAccount) return; const b = getCurrentBudget(state.activeAccount.budgetData); getEl('settingActiveMonth').textContent = b ? b.monthLabel : 'None'; getEl('settingNewLimit').value = b ? cleanAmount(b.monthlyLimit) : 600; getEl('settingsModal').classList.remove('hidden'); });
         safeListen('closeSettingsBtn', 'click', () => getEl('settingsModal').classList.add('hidden'));
         safeListen('saveLimitBtn', 'click', async () => { if(!state.activeAccount) return; const newLim = parseFloat(getEl('settingNewLimit').value); try { const upBudget = [...state.activeAccount.budgetData]; const idx = upBudget.findIndex(b => b.monthLabel === getEl('settingActiveMonth').textContent); if(idx !== -1) { upBudget[idx].monthlyLimit = newLim; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget }); getEl('settingsModal').classList.add('hidden'); } } catch(e){} });
