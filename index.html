@@ -9,9 +9,6 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.8.0/dist/alpine.min.js" defer></script>
-    <script src="https://cdn.amcharts.com/lib/4/core.js"></script>
-    <script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
-    <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -30,6 +27,17 @@
         /* Card Interactions */
         .account-card { transition: all 0.1s ease-in-out; }
         .account-card:active { transform: scale(0.99); background-color: #f9fafb; }
+        
+        /* Heatmap */
+        .heatmap-scroll { overflow-x: auto; padding-bottom: 10px; }
+        .heatmap-grid { display: inline-grid; grid-template-rows: repeat(7, 14px); grid-auto-flow: column; gap: 4px; }
+        .day-cell { width: 14px; height: 14px; border-radius: 2px; background-color: #f3f4f6; transition: all 0.1s ease; }
+        .day-cell:hover { border: 1px solid #000; }
+        .level-0 { background-color: #f3f4f6; }
+        .level-1 { background-color: #d1d5db; }
+        .level-2 { background-color: #9ca3af; }
+        .level-3 { background-color: #4b5563; }
+        .level-4 { background-color: #000000; }
     </style>
 </head>
 <body class="antialiased text-black bg-white">
@@ -63,8 +71,9 @@
             </button>
             <div id="admin-tools" class="p-4 border-b border-gray-200 hidden md:block">
                 <div class="relative mb-3"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i><input type="text" id="search-input" placeholder="Search accounts..." class="w-full bg-gray-50 border border-gray-300 text-black text-xs rounded-md pl-10 p-2 focus:border-black focus:ring-0"></div>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-2">
                     <button id="upload-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Upload JSON"><i class="ph ph-upload-simple text-lg"></i></button>
+                    <button id="export-btn" class="flex items-center justify-center bg-white border border-blue-300 hover:bg-blue-50 text-blue-600 px-2 py-2 rounded-md text-xs font-bold" title="Export Database"><i class="ph ph-download-simple text-lg"></i></button>
                     <button id="open-merge-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Merge / Move"><i class="ph ph-arrows-merge text-lg"></i></button>
                     <button id="open-delete-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-red-50 text-red-600 px-2 py-2 rounded-md text-xs font-bold" title="Delete Client"><i class="ph ph-trash text-lg"></i></button>
                     <input type="file" id="json-upload" accept=".json" class="hidden" />
@@ -102,12 +111,14 @@
 
                 <div id="admin-dashboard-view" class="hidden space-y-8 max-w-7xl mx-auto">
                     <div id="account-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+                    
                     <div class="rounded-lg overflow-hidden w-full md:flex bg-white border border-black">
                         <div class="flex w-full md:w-1/2 px-5 pb-4 pt-8 bg-black text-white items-center relative"><canvas id="tickerChart" class="w-full relative z-10"></canvas></div>
                         <div class="flex w-full md:w-1/2 p-8 bg-white text-black items-center border-l border-black"><div class="w-full"><h3 class="text-lg font-bold leading-tight" id="ticker-title">Activity</h3><div class="flex w-full items-end mb-6"><span class="block leading-none text-4xl font-bold" id="ticker-current-price">$0.00</span><span class="block leading-5 text-sm ml-4 font-bold" id="ticker-change"></span></div><div class="grid grid-cols-2 gap-4 text-xs"><div class="flex justify-between border-b border-gray-100 pb-1"><span>Total Limit</span><span class="font-bold font-mono" id="ticker-open">$0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Tx Count</span><span class="font-bold font-mono" id="ticker-cap">0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Highest</span><span class="font-bold font-mono" id="ticker-high">$0</span></div><div class="flex justify-between border-b border-gray-100 pb-1"><span>Avg</span><span class="font-bold font-mono" id="ticker-ratio">$0</span></div><div class="flex justify-between"><span>Lowest</span><span class="font-bold font-mono" id="ticker-low">$0</span></div><div class="flex justify-between"><span>Remain</span><span class="font-bold font-mono" id="ticker-dividend">$0</span></div></div></div></div>
                     </div>
-                    <div class="bg-white p-6 rounded-lg border border-black"><div class="mb-4"><h3 class="text-lg font-bold text-black">Budget Performance</h3><p class="text-xs text-gray-500">Utilization for current & previous 2 months.</p></div><div id="radarChartDiv" class="w-full h-80"></div></div>
+
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Top Spenders</h4><div class="h-64"><canvas id="topSpendersChart"></canvas></div></div><div class="bg-white p-5 rounded-lg border border-gray-200"><h4 class="text-sm font-bold mb-4">Recent Activity</h4><div class="overflow-y-auto max-h-64 pr-2 space-y-3" id="recent-activity-list"></div></div></div>
+                    <div class="bg-white p-6 rounded-lg border border-gray-200 overflow-hidden"><div class="flex justify-between items-center mb-4"><h4 class="text-sm font-bold text-black">Daily Activity (Year)</h4></div><div class="heatmap-scroll"><div class="heatmap-grid" id="heatmap-container"></div></div></div>
                     <div class="border-t border-gray-200 pt-6"><h3 class="text-lg font-bold mb-4">Detailed Breakdown</h3><div id="dynamic-charts-area" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
                 </div>
 
@@ -118,10 +129,12 @@
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Remaining</dt><dd id="c-card-remaining" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white rounded-lg border border-gray-200 p-5 flex flex-col justify-center"><div class="flex justify-between items-end mb-2"><h4 class="text-sm font-bold text-black">Current Month Utilization</h4><span id="c-utilization-text" class="text-xs text-gray-500 font-bold">0%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-black h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
-                        <div class="bg-white p-4 rounded-lg border border-black relative overflow-hidden"><div class="absolute top-3 left-4 z-10"><h3 class="text-xs font-bold text-black uppercase tracking-wide">3-Month Performance</h3></div><div id="clientRadarChartDiv" class="w-full h-48"></div></div>
+                    
+                    <div class="bg-white rounded-lg border border-gray-200 p-5">
+                        <div class="flex justify-between items-end mb-2"><h4 class="text-sm font-bold text-black">Current Month Utilization</h4><span id="c-utilization-text" class="text-xs text-gray-500 font-bold">0%</span></div>
+                        <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="c-progress-bar" class="bg-black h-3 rounded-full transition-all duration-500" style="width: 0%"></div></div>
                     </div>
+
                     <div class="flex items-center space-x-2 overflow-x-auto pb-2" id="client-month-selector"></div>
                     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between"><h3 class="text-base font-bold text-black">Transactions</h3><div class="flex items-center space-x-3"><button id="add-tx-btn" class="text-xs flex items-center space-x-1 bg-white hover:bg-gray-50 text-black border border-gray-300 px-3 py-1.5 rounded-md font-bold transition-colors"><i class="ph-bold ph-plus"></i><span>Add</span></button><span id="c-tx-count" class="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">0</span></div></div>
@@ -136,6 +149,22 @@
     <div id="settings-modal" class="fixed inset-0 z-[70] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-lg border border-black p-6"><h3 class="text-lg font-bold text-black mb-4">Budget Settings</h3><div class="space-y-6"><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Edit Limit</h4><div class="flex space-x-2"><div id="setting-active-month" class="bg-gray-100 p-2 rounded text-sm font-mono font-bold"></div><input type="number" id="setting-new-limit" class="block w-full rounded-md border-gray-300 p-2 text-sm" placeholder="New Limit"></div><button id="save-limit-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Update</button></div><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Add Month</h4><div class="flex space-x-2"><input type="month" id="setting-new-month-picker" class="block w-full rounded-md border-gray-300 p-2 text-sm"><input type="number" id="setting-new-month-limit" class="w-24 rounded-md border-gray-300 p-2 text-sm" value="600"></div><button id="add-month-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Add Month</button></div></div><div class="mt-6 flex justify-end"><button id="close-settings-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Close</button></div></div></div></div>
     <div id="merge-modal" class="fixed inset-0 z-[80] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-2xl rounded-lg border border-black p-6 h-[80vh] flex flex-col"><h3 class="text-lg font-bold text-black mb-1">Data Tools</h3><p class="text-xs text-gray-500 mb-4">Merge duplicate accounts OR move specific transactions.</p><div class="flex-shrink-0 grid grid-cols-2 gap-4 mb-4"><div><label class="text-xs font-bold uppercase text-red-600">From (Source)</label><select id="merge-source-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div><div><label class="text-xs font-bold uppercase text-green-600">To (Destination)</label><select id="merge-dest-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div></div><div class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50 mb-4 custom-scroll"><div id="transaction-list-header" class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 hidden">Select Transactions to Move:</div><div id="transaction-list-container" class="space-y-1"><div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div></div></div><div class="flex-shrink-0 mt-2 flex justify-between items-center pt-4 border-t border-gray-100"><button id="close-merge-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Cancel</button><div class="flex space-x-2"><button id="move-tx-btn" class="px-4 py-2 bg-white border border-black text-black rounded-md text-sm font-bold hover:bg-gray-50 hidden">Move Selected</button><button id="confirm-merge-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">Merge & Delete Source</button></div></div></div></div></div>
     <div id="delete-modal" class="fixed inset-0 z-[90] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-lg border border-red-600 p-6 shadow-xl"><div class="flex items-center space-x-3 mb-4 text-red-600"><i class="ph-fill ph-warning-circle text-3xl"></i><h3 class="text-lg font-bold text-black">Delete Client Account</h3></div><p class="text-sm text-gray-600 mb-4">This action is <span class="font-bold">irreversible</span>. All transaction history and budget data for this client will be wiped from the database.</p><div class="space-y-2"><label class="text-xs font-bold uppercase text-gray-500">Select Client to Delete</label><select id="delete-client-select" class="block w-full rounded-md border-gray-300 p-2 text-sm focus:border-red-500 focus:ring-red-500"></select></div><div class="mt-6 flex justify-end space-x-2"><button id="close-delete-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 shadow-sm">Delete Forever</button></div></div></div></div>
+    
+    <div id="import-log-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-2xl rounded-lg border border-black shadow-xl p-6 flex flex-col h-[80vh]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-black">Import Log</h3>
+                    <button id="close-import-log-btn" class="text-gray-500 hover:text-black"><i class="ph-bold ph-x text-xl"></i></button>
+                </div>
+                <div id="import-log-content" class="flex-1 overflow-y-auto bg-gray-50 border border-gray-200 rounded p-4 font-mono text-xs space-y-1"></div>
+                <div class="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                    <button id="import-done-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hidden">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const setup = () => {
@@ -160,7 +189,7 @@
         const db = getFirestore(app);
         const appId = 'balance-t-default';
 
-        let state = { firebaseUser: null, accounts: [], currentUser: null, activeAccount: null, selectedGroup: null, selectedMonthLabel: null, loading: true, searchQuery: "", charts: { trend: null, topSpenders: null, dynamic: [], radar: null, clientRadar: null }, filterAccountId: null };
+        let state = { firebaseUser: null, accounts: [], currentUser: null, activeAccount: null, selectedGroup: null, selectedMonthLabel: null, loading: true, searchQuery: "", charts: { trend: null, topSpenders: null, dynamic: [], radar: null, clientRadar: null, adminTrend: null, clientTrend: null }, filterAccountId: null };
         
         const els = {
             col1List: 'col-1-list', col2List: 'col-2-list', col2Title: 'col-2-title', clientCount: 'client-count',
@@ -174,7 +203,8 @@
             mergeModal: 'merge-modal', openMergeBtn: 'open-merge-btn', closeMergeBtn: 'close-merge-btn', confirmMergeBtn: 'confirm-merge-btn', mergeSource: 'merge-source-select', mergeDest: 'merge-dest-select',
             moveTxBtn: 'move-tx-btn', txListContainer: 'transaction-list-container', txListHeader: 'transaction-list-header',
             deleteModal: 'delete-modal', openDeleteBtn: 'open-delete-btn', closeDeleteBtn: 'close-delete-btn', confirmDeleteBtn: 'confirm-delete-btn', deleteSelect: 'delete-client-select',
-            uploadBtn: 'upload-btn', uploadInput: 'json-upload', searchInput: 'search-input',
+            importLogModal: 'import-log-modal', importLogContent: 'import-log-content', closeImportLogBtn: 'close-import-log-btn', importDoneBtn: 'import-done-btn',
+            uploadBtn: 'upload-btn', uploadInput: 'json-upload', exportBtn: 'export-btn', searchInput: 'search-input',
             cCardLimit: 'c-card-limit', cCardSpent: 'c-card-spent', cCardRemaining: 'c-card-remaining', cProgressBar: 'c-progress-bar', cUtilizationText: 'c-utilization-text', cTxBody: 'c-tx-body', cTxCount: 'c-tx-count', clientMonthSelector: 'client-month-selector'
         };
 
@@ -198,47 +228,18 @@
                         if(state.activeAccount) renderClientDashboard(); else renderAdminDashboard(); 
                     } else if (state.currentUser.role === 'client') {
                          const fresh = state.accounts.find(a => a.id === state.currentUser.id);
-                         if(fresh) {
-                            state.currentUser.data = fresh;
-                            state.activeAccount = fresh;
-                            updateUI();
-                         }
+                         if(fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; updateUI(); }
                     }
                 }
             });
         }
 
-        // --- RADAR ---
-        function renderRadarChart(data, elementId, chartRef) {
-            if (state.charts[chartRef]) { state.charts[chartRef].dispose(); }
-            am4core.useTheme(am4themes_animated);
-            var chart = am4core.create(elementId, am4charts.RadarChart);
-            chart.data = data;
-            chart.startAngle = -90; chart.endAngle = 180; chart.innerRadius = am4core.percent(40);
-            chart.colors.list = [am4core.color("#000000")];
-            var categoryAxis = chart.yAxes.push(new am4charts.CategoryAxis());
-            categoryAxis.dataFields.category = "category";
-            categoryAxis.renderer.grid.template.strokeOpacity = 0;
-            categoryAxis.renderer.labels.template.fill = am4core.color("#000000");
-            categoryAxis.renderer.labels.template.fontSize = 11;
-            categoryAxis.renderer.labels.template.fontWeight = "bold";
-            var valueAxis = chart.xAxes.push(new am4charts.ValueAxis());
-            valueAxis.renderer.grid.template.strokeOpacity = 0.1;
-            valueAxis.min = 0;
-            valueAxis.renderer.labels.template.disabled = true;
-            var series1 = chart.series.push(new am4charts.RadarColumnSeries());
-            series1.dataFields.valueX = "full"; series1.dataFields.categoryY = "category";
-            series1.columns.template.fill = am4core.color("#f3f4f6"); series1.columns.template.fillOpacity = 1; series1.columns.template.strokeWidth = 0; series1.columns.template.width = am4core.percent(100);
-            var series2 = chart.series.push(new am4charts.RadarColumnSeries());
-            series2.dataFields.valueX = "value"; series2.dataFields.categoryY = "category";
-            series2.columns.template.fill = am4core.color("#000000"); series2.columns.template.strokeWidth = 0; series2.columns.template.tooltipText = "{category}: ${value} / ${full}"; series2.columns.template.radarColumn.cornerRadius = 4;
-            chart.cursor = new am4charts.RadarCursor();
-            state.charts[chartRef] = chart;
-        }
-
         // --- ADMIN DASHBOARD ---
         function renderAdminDashboard() {
             try {
+                getEl('headerTitle').textContent = "Overview";
+                getEl('headerSubtitle').textContent = "Financial Snapshot";
+
                 if(state.charts.trend) state.charts.trend.destroy(); if(state.charts.topSpenders) state.charts.topSpenders.destroy(); state.charts.dynamic.forEach(c=>c.destroy()); state.charts.dynamic=[];
                 getEl('dynamicChartsArea').innerHTML = ''; getEl('accountCardsContainer').innerHTML = ''; 
                 let totalSpent=0, totalLimit=0, totalRemaining=0, txCount=0, highTx=0, lowTx=Infinity, sumTx=0, cSpends=[], allTxs=[], accountStats={}, dailySpending={}, monthlyAggregates={};
@@ -258,13 +259,10 @@
                                 const dObj=new Date(tx.date); if(!isNaN(dObj)) dailySpending[dObj.toISOString().split('T')[0]]=(dailySpending[dObj.toISOString().split('T')[0]]||0)+amt;
                             });
                         }
-                        acc.budgetData.forEach(bd => { const mDate=new Date(bd.monthLabel); if(!isNaN(mDate)) { mDate.setDate(1); const key=mDate.toISOString().split('T')[0]; if(!monthlyAggregates[key]) monthlyAggregates[key]={spent:0,limit:0,date:mDate}; monthlyAggregates[key].spent+=calculateRealSpent(bd.transactions); monthlyAggregates[key].limit+=cleanAmount(bd.monthlyLimit); } });
+                        acc.budgetData.forEach(bd => { const mDate=new Date(bd.monthLabel); if(!isNaN(mDate)) { const key = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2,'0')}-01`; if(!monthlyAggregates[key]) monthlyAggregates[key]={spent:0,limit:0,date:new Date(mDate.getFullYear(), mDate.getMonth(), 1)}; monthlyAggregates[key].spent+=calculateRealSpent(bd.transactions); monthlyAggregates[key].limit+=cleanAmount(bd.monthlyLimit); } });
                     }
                 });
                 totalRemaining=totalLimit-totalSpent; if(lowTx===Infinity) lowTx=0; const avgTx=txCount>0?sumTx/txCount:0;
-                
-                const radarData = []; for(let i=0; i<3; i++) { const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1); const key = d.toISOString().split('T')[0]; const data = monthlyAggregates[key] || { spent:0, limit:0 }; radarData.push({ category: d.toLocaleDateString('en-US', { month: 'short' }), value: data.spent, full: data.limit || 1 }); }
-                renderRadarChart(radarData.reverse(), "radarChartDiv", "radar");
 
                 getEl('tickerTitle').textContent = state.filterAccountId ? `Account ${state.filterAccountId} Activity` : "Global Activity";
                 getEl('tickerCurrentPrice').textContent = formatCurrency(totalSpent); const pctUsed = totalLimit>0?(totalSpent/totalLimit)*100:0; 
@@ -277,6 +275,8 @@
                 const sortedIds = Object.keys(accountStats).sort((a,b)=>parseInt(a)-parseInt(b));
                 getEl('accountCardsContainer').innerHTML = sortedIds.map(id => { const s=accountStats[id], isActive=state.filterAccountId==id, rem=s.budget-s.spent; return `<div onclick="window.selectGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive?'border-black bg-gray-50':'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400"><div class="flex justify-between items-start mb-3"><h3 class="text-lg font-bold text-black">Account ${id}</h3><span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300 flex-wrap overflow-hidden">${s.clients} Clients</span></div><div class="grid grid-cols-3 gap-1 mt-2 text-center divide-x divide-gray-100"><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.budget)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.spent)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-xs font-bold truncate ${rem<0?'text-red-600':'text-green-600'}">${formatCurrency(rem)}</p></div></div></div>`; }).join('');
                 
+                const today = new Date(); const oneYearAgo = new Date(); oneYearAgo.setDate(today.getDate() - 365); let heatmapHTML = ''; for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) { const val = dailySpending[d.toISOString().split('T')[0]] || 0; let level = 'level-0'; if (val > 300) level = 'level-4'; else if (val > 150) level = 'level-3'; else if (val > 50) level = 'level-2'; else if (val > 0) level = 'level-1'; heatmapHTML += `<div class="day-cell ${level}" title="${d.toLocaleDateString()}: ${formatCurrency(val)}"></div>`; } if(getEl('heatmapContainer')) getEl('heatmapContainer').innerHTML = heatmapHTML;
+
                 cSpends.sort((a,b)=>b.amount-a.amount);
                 state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { type:'bar', indexAxis:'y', data:{labels:cSpends.slice(0,5).map(c=>c.name), datasets:[{data:cSpends.slice(0,5).map(c=>c.amount), backgroundColor:'#000000', borderRadius:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false},y:{grid:{display:false}}}} });
                 allTxs.sort((a,b)=>new Date(b.date)-new Date(a.date)); if(allTxs.length===0) getEl('recentActivityList').innerHTML='<div class="text-center text-sm text-gray-400 italic p-4">No recent transactions.</div>'; else getEl('recentActivityList').innerHTML=allTxs.slice(0,5).map(tx => `<div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100"><div class="flex items-center space-x-3 overflow-hidden"><div class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center text-[10px] font-bold text-black">${getInitials(tx.client)}</div><div class="min-w-0"><div class="text-xs font-bold text-black truncate">${tx.client}</div><div class="text-[10px] text-gray-500 truncate">${tx.description||'No Desc'}</div></div></div><div class="text-xs font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</div></div>`).join('');
@@ -288,7 +288,6 @@
         // --- CLIENT DASHBOARD ---
         function renderClientDashboard() {
             const acc = state.activeAccount; if(!acc) return;
-            // Update Header Name
             getEl('headerTitle').textContent = `Welcome, ${acc.clientName}`;
             getEl('headerSubtitle').textContent = `Account #${acc.accountId} • ${acc.organization || ''}`;
 
@@ -299,18 +298,13 @@
                 getEl('cCardLimit').textContent = formatCurrency(lim); getEl('cCardSpent').textContent = formatCurrency(sp); getEl('cCardRemaining').textContent = formatCurrency(rem); getEl('cCardRemaining').className = `text-2xl font-bold mt-1 ${rem < 0 ? 'text-red-600' : rem < lim*0.15 ? 'text-yellow-600' : 'text-green-600'}`;
                 const pct = lim > 0 ? Math.min((sp/lim)*100, 100) : 0; getEl('cProgressBar').style.width = pct + '%'; getEl('cProgressBar').className = `h-3 rounded-full transition-all duration-500 ${pct > 100 ? 'bg-red-600' : pct > 85 ? 'bg-yellow-500' : 'bg-black'}`; getEl('cUtilizationText').textContent = `${Math.round(pct)}% Used`;
                 const txs = getCleanTransactions(b.transactions); getEl('cTxCount').textContent = `${txs.length} entries`; txs.sort((a,b)=>new Date(b.date)-new Date(a.date)); getEl('cTxBody').innerHTML = txs.map(tx => `<tr class="hover:bg-gray-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-sm text-black font-mono">${tx.date}</td><td class="px-6 py-4 text-sm text-gray-600">${(!tx.description || tx.description==='undefined') ? '<span class="text-gray-400 italic">No Description</span>' : tx.description}</td><td class="px-6 py-4 text-sm text-right font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</td></tr>`).join('');
-            
-                const monthlyAggregates = {};
-                acc.budgetData.forEach(bd => { const mDate = new Date(bd.monthLabel); if(!isNaN(mDate)) { mDate.setDate(1); const key = mDate.toISOString().split('T')[0]; monthlyAggregates[key] = { spent: calculateRealSpent(bd.transactions), limit: cleanAmount(bd.monthlyLimit), date: mDate }; } });
-                const radarData = []; for(let i=0; i<3; i++) { const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1); const key = d.toISOString().split('T')[0]; const data = monthlyAggregates[key] || { spent:0, limit:0 }; radarData.push({ category: d.toLocaleDateString('en-US', { month: 'short' }), value: data.spent, full: data.limit || 1 }); }
-                renderRadarChart(radarData.reverse(), "clientRadarChartDiv", "clientRadar");
             }
         }
         window.setClientMonth = (label) => { state.selectedMonthLabel = label; renderClientDashboard(); }
 
         // --- RENDER SIDEBAR ---
         function renderSidebar() {
-            if (state.currentUser && state.currentUser.role === 'client') return; // DO NOT RENDER SIDEBAR FOR CLIENTS
+            if (state.currentUser && state.currentUser.role === 'client') return; 
 
             const filtered = state.accounts.filter(acc => (acc.clientName||'').toLowerCase().includes(state.searchQuery) || (acc.accountId||'').toString().includes(state.searchQuery));
             const grouped = filtered.reduce((g, acc) => { const id = acc.accountId || 'Unassigned'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {});
@@ -330,7 +324,17 @@
         }
         
         window.selectGroup = (gid) => { state.selectedGroup = gid; state.filterAccountId = gid; renderSidebar(); const root = document.querySelector('[x-data]'); if(root && root.__x) root.__x.$data.openSecondColumn(); if(state.currentUser.role === 'admin') { state.activeAccount = null; getEl('clientView').classList.add('hidden'); getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } };
-        window.resetToOverview = () => { state.selectedGroup = null; state.activeAccount = null; state.filterAccountId = null; renderSidebar(); const root = document.querySelector('[x-data]'); if(root && root.__x) root.__x.$data.closeSecondColumn(); getEl('clientView').classList.add('hidden'); getEl('emptyState').classList.add('hidden'); if(state.accounts.length>0) { getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } else getEl('emptyState').classList.remove('hidden'); };
+        
+        window.resetToOverview = () => { 
+            state.selectedGroup = null; state.activeAccount = null; state.filterAccountId = null; 
+            renderSidebar(); 
+            // FIX: Reset Header Title
+            getEl('headerTitle').textContent = "Overview";
+            getEl('headerSubtitle').textContent = "Financial Snapshot";
+            const root = document.querySelector('[x-data]'); if(root && root.__x) root.__x.$data.closeSecondColumn(); 
+            getEl('clientView').classList.add('hidden'); getEl('emptyState').classList.add('hidden'); 
+            if(state.accounts.length>0) { getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } else getEl('emptyState').classList.remove('hidden'); 
+        };
         
         // --- Standard Logic & Helpers ---
         function cleanAmount(val) { if (typeof val === 'number') return val; if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g,"")) || 0; return 0; }
@@ -361,36 +365,21 @@
             document.getElementById('user-role').textContent = state.currentUser.role.toUpperCase();
             document.getElementById('user-avatar').textContent = getInitials(state.currentUser.name);
             
-            // *** CLIENT ROLE LOGIC ***
             if(state.currentUser.role === 'client') { 
                 state.activeAccount = state.currentUser.data;
-                
-                // 1. Hide Sidebars completely
                 getEl('sidebarPrimary').classList.add('hidden');
                 getEl('sidebarSecondary').classList.add('hidden');
-                
-                // 2. Show Header Logout
                 getEl('clientLogoutBtn').classList.remove('hidden');
-                
-                // 3. Hide Admin Views
                 getEl('adminView').classList.add('hidden'); 
                 getEl('adminManageBtn').classList.add('hidden'); 
-                
-                // 4. Show Client View
                 getEl('clientView').classList.remove('hidden'); 
                 renderClientDashboard(); 
             } 
-            // *** ADMIN ROLE LOGIC ***
             else { 
-                // 1. Show Sidebars
                 getEl('sidebarPrimary').classList.remove('hidden');
-                
-                // 2. Hide Header Logout (Admin uses sidebar logout)
                 getEl('clientLogoutBtn').classList.add('hidden');
-
                 getEl('adminTools').classList.remove('hidden'); 
-                renderSidebar(); // Re-render sidebar list
-                
+                renderSidebar(); 
                 if(state.accounts.length>0) { 
                     getEl('emptyState').classList.add('hidden'); 
                     getEl('adminView').classList.remove('hidden'); 
@@ -402,41 +391,80 @@
         }
 
         safeListen('searchInput', 'input', (e) => { state.searchQuery = e.target.value.toLowerCase().trim(); renderSidebar(); });
+        
+        // --- IMPORT LOGBOOK ---
+        const logModal = getEl('importLogModal');
+        const logContent = getEl('importLogContent');
+        const addLog = (msg, type='info') => {
+            const color = type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-600');
+            const div = document.createElement('div');
+            div.className = color;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logContent.appendChild(div);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
         safeListen('uploadBtn', 'click', () => getEl('uploadInput').click());
         safeListen('uploadInput', 'change', async (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader(); reader.onload = async (ev) => { try { const json = JSON.parse(ev.target.result); const data = Array.isArray(json) ? json : [json]; const batch = data.map(async (c) => { const id = `client_${(c.clientName||'').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${c.accountId||'000'}`; const exist = state.accounts.find(a => a.id === id); await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id), { clientName: c.clientName, organization: c.organization, accountId: c.accountId, budgetData: c.budgetData, lastUpdated: new Date().toISOString(), auth_password: exist ? exist.auth_password : 'Password', auth_password_changed: exist ? exist.auth_password_changed : false }); }); await Promise.all(batch); alert("Import Successful"); } catch (err) { alert("Invalid JSON"); } }; reader.readAsText(file);
+            logContent.innerHTML = '';
+            logModal.classList.remove('hidden');
+            getEl('importDoneBtn').classList.add('hidden'); 
+            addLog("Reading file...", 'info');
+            const reader = new FileReader(); 
+            reader.onload = async (ev) => { 
+                try { 
+                    const rawJson = ev.target.result;
+                    let json; try { json = JSON.parse(rawJson); } catch (parseErr) { throw new Error("Invalid JSON File. Please check format."); }
+                    const data = Array.isArray(json) ? json : [json];
+                    addLog(`File parsed. Found ${data.length} records.`, 'info');
+                    let successCount = 0; let failCount = 0;
+                    for (const c of data) {
+                        try {
+                            if (!c.clientName || !c.accountId) { throw new Error("Missing clientName or accountId"); }
+                            const id = `client_${(c.clientName||'').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${c.accountId||'000'}`;
+                            const exist = state.accounts.find(a => a.id === id);
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id), { 
+                                clientName: c.clientName, organization: c.organization || 'Imported', accountId: c.accountId, budgetData: c.budgetData || [], lastUpdated: new Date().toISOString(), auth_password: exist ? exist.auth_password : 'Password', auth_password_changed: exist ? exist.auth_password_changed : false 
+                            });
+                            addLog(`✅ Imported: ${c.clientName}`, 'success'); successCount++;
+                        } catch (recErr) { addLog(`❌ Failed: ${c.clientName || 'Unknown'} - ${recErr.message}`, 'error'); failCount++; }
+                    }
+                    addLog(`--- IMPORT COMPLETE ---`, 'info'); addLog(`Success: ${successCount} | Failed: ${failCount}`, 'info');
+                    getEl('importDoneBtn').classList.remove('hidden');
+                } catch (err) { addLog(`CRITICAL ERROR: ${err.message}`, 'error'); getEl('importDoneBtn').classList.remove('hidden'); } 
+            }; 
+            reader.readAsText(file);
         });
 
-        // MERGE & MOVE LOGIC
+        safeListen('closeImportLogBtn', 'click', () => logModal.classList.add('hidden'));
+        safeListen('importDoneBtn', 'click', () => { logModal.classList.add('hidden'); window.location.reload(); });
+
+        // --- EXPORT ---
+        safeListen('exportBtn', 'click', () => {
+            if(!state.accounts || state.accounts.length === 0) { alert("No data to export."); return; }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.accounts, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "accounts_data.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
         safeListen('openMergeBtn', 'click', () => { const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`).join(''); getEl('mergeSource').innerHTML = '<option value="">Select Source...</option>' + opts; getEl('mergeDest').innerHTML = '<option value="">Select Destination...</option>' + opts; getEl('mergeModal').classList.remove('hidden'); getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div>'; getEl('txListHeader').classList.add('hidden'); getEl('moveTxBtn').classList.add('hidden'); });
         safeListen('closeMergeBtn', 'click', () => getEl('mergeModal').classList.add('hidden'));
         
-        // 1. Show Transactions on Source Selection
         safeListen('mergeSource', 'change', () => {
             const sId = getEl('mergeSource').value;
             if(!sId) return;
             const acc = state.accounts.find(a => a.id === sId);
             if(!acc || !acc.budgetData) { getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400">No transactions found.</div>'; return; }
-            
-            getEl('txListHeader').classList.remove('hidden');
-            getEl('moveTxBtn').classList.remove('hidden');
-            
-            let html = '';
-            acc.budgetData.forEach((m, mIdx) => {
-                if(m.transactions && m.transactions.length > 0) {
-                    m.transactions.forEach((tx, tIdx) => {
-                        if(tx.date !== 'Monthly Limit') {
-                            const val = `${mIdx}|${tIdx}`; // store indices
-                            html += `<div class="flex items-center p-2 hover:bg-gray-100 border-b border-gray-100"><input type="checkbox" class="tx-check mr-2" value="${val}"><div class="text-xs flex-1"><span class="font-bold">${tx.date}</span> <span class="text-gray-500">${tx.description || 'No Desc'}</span></div><div class="text-xs font-bold">${formatCurrency(cleanAmount(tx.amount))}</div></div>`;
-                        }
-                    });
-                }
-            });
+            getEl('txListHeader').classList.remove('hidden'); getEl('moveTxBtn').classList.remove('hidden');
+            let html = ''; acc.budgetData.forEach((m, mIdx) => { if(m.transactions && m.transactions.length > 0) { m.transactions.forEach((tx, tIdx) => { if(tx.date !== 'Monthly Limit') { const val = `${mIdx}|${tIdx}`; html += `<div class="flex items-center p-2 hover:bg-gray-100 border-b border-gray-100"><input type="checkbox" class="tx-check mr-2" value="${val}"><div class="text-xs flex-1"><span class="font-bold">${tx.date}</span> <span class="text-gray-500">${tx.description || 'No Desc'}</span></div><div class="text-xs font-bold">${formatCurrency(cleanAmount(tx.amount))}</div></div>`; } }); } });
             getEl('txListContainer').innerHTML = html || '<div class="text-center text-xs text-gray-400">No transactions found.</div>';
         });
 
-        // 2. Move Selected
         safeListen('moveTxBtn', 'click', async () => {
             const sId = getEl('mergeSource').value; const dId = getEl('mergeDest').value;
             if(!sId || !dId || sId === dId) return alert("Select distinct Source and Destination.");
@@ -447,7 +475,7 @@
             try {
                 const sAcc = state.accounts.find(a => a.id === sId); const dAcc = state.accounts.find(a => a.id === dId);
                 const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData)); const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
-                const toMove = Array.from(checkboxes).map(cb => cb.value.split('|').map(Number)).sort((a,b) => b[1] - a[1]); // sort by tx index desc
+                const toMove = Array.from(checkboxes).map(cb => cb.value.split('|').map(Number)).sort((a,b) => b[1] - a[1]); 
 
                 toMove.forEach(([mIdx, tIdx]) => {
                     const tx = sBudget[mIdx].transactions[tIdx];
@@ -470,10 +498,8 @@
             } catch(e) { console.error(e); alert("Move Failed."); }
         });
 
-        // 3. Full Merge
         safeListen('confirmMergeBtn', 'click', async () => { const sId = getEl('mergeSource').value; const dId = getEl('mergeDest').value; if(!sId || !dId || sId === dId) return alert("Invalid Selection"); if(!confirm("DELETE source account?")) return; try { const sourceAcc = state.accounts.find(a => a.id === sId); const destAcc = state.accounts.find(a => a.id === dId); let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || [])); if (sourceAcc.budgetData) { sourceAcc.budgetData.forEach(sMonth => { const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel); if (existingIdx !== -1) { const destMonth = newBudget[existingIdx]; const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])]; const newSpent = calculateRealSpent(combinedTx); newBudget[existingIdx].transactions = combinedTx; newBudget[existingIdx].totalSpent = newSpent; newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent; } else newBudget.push(sMonth); }); } newBudget.sort((a,b) => new Date(a.monthLabel) - new Date(b.monthLabel)); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget }); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId)); getEl('mergeModal').classList.add('hidden'); alert("Merged"); } catch (err) { alert("Merge failed"); } });
         
-        // DELETE CLIENT LOGIC
         safeListen('openDeleteBtn', 'click', () => { 
             const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`).join(''); 
             getEl('deleteSelect').innerHTML = '<option value="">Select Client...</option>' + opts; 
@@ -492,7 +518,6 @@
             } catch (err) { console.error(err); alert("Error deleting client."); }
         });
 
-        // Settings Listeners
         safeListen('adminManageBtn', 'click', () => { if(!state.activeAccount) return; const b = getCurrentBudget(state.activeAccount.budgetData); getEl('settingActiveMonth').textContent = b ? b.monthLabel : 'None'; getEl('settingNewLimit').value = b ? cleanAmount(b.monthlyLimit) : 600; getEl('settingsModal').classList.remove('hidden'); });
         safeListen('closeSettingsBtn', 'click', () => getEl('settingsModal').classList.add('hidden'));
         safeListen('saveLimitBtn', 'click', async () => { if(!state.activeAccount) return; const newLim = parseFloat(getEl('settingNewLimit').value); try { const upBudget = [...state.activeAccount.budgetData]; const idx = upBudget.findIndex(b => b.monthLabel === getEl('settingActiveMonth').textContent); if(idx !== -1) { upBudget[idx].monthlyLimit = newLim; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget }); getEl('settingsModal').classList.add('hidden'); } } catch(e){} });
