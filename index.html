@@ -178,356 +178,941 @@
         }
     </script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, query, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  import { getFirestore, collection, doc, setDoc, onSnapshot, query, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        const firebaseConfig = { apiKey: "AIzaSyB-P87cAnvDHpCoPocqhjHE9zGaDQXxe2U", authDomain: "balance-t.firebaseapp.com", databaseURL: "https://balance-t-default-rtdb.firebaseio.com", projectId: "balance-t", storageBucket: "balance-t.firebasestorage.app", messagingSenderId: "893924100931", appId: "1:893924100931:web:70427b3ff655341594fdf6", measurementId: "G-5RJM9SQDS1" };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = 'balance-t-default';
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-P87cAnvDHpCoPocqhjHE9zGaDQXxe2U",
+    authDomain: "balance-t.firebaseapp.com",
+    databaseURL: "https://balance-t-default-rtdb.firebaseio.com",
+    projectId: "balance-t",
+    storageBucket: "balance-t.firebasestorage.app",
+    messagingSenderId: "893924100931",
+    appId: "1:893924100931:web:70427b3ff655341594fdf6",
+    measurementId: "G-5RJM9SQDS1"
+  };
 
-        let state = { firebaseUser: null, accounts: [], currentUser: null, activeAccount: null, selectedGroup: null, selectedMonthLabel: null, loading: true, searchQuery: "", charts: { trend: null, topSpenders: null, dynamic: [], radar: null, clientRadar: null, adminTrend: null, clientTrend: null }, filterAccountId: null };
-        
-        const els = {
-            col1List: 'col-1-list', col2List: 'col-2-list', col2Title: 'col-2-title', clientCount: 'client-count',
-            adminView: 'admin-dashboard-view', clientView: 'client-dashboard-view', emptyState: 'empty-state', adminTools: 'admin-tools',
-            sidebarPrimary: 'sidebar-primary', sidebarSecondary: 'sidebar-secondary', clientLogoutBtn: 'client-logout-btn',
-            tickerCurrentPrice: 'ticker-current-price', tickerChange: 'ticker-change', tickerOpen: 'ticker-open', tickerCap: 'ticker-cap', tickerHigh: 'ticker-high', tickerLow: 'ticker-low', tickerRatio: 'ticker-ratio', tickerDividend: 'ticker-dividend', tickerTitle: 'ticker-title',
-            accountCardsContainer: 'account-cards-container', recentActivityList: 'recent-activity-list', dynamicChartsArea: 'dynamic-charts-area', heatmapContainer: 'heatmap-container',
-            headerTitle: 'header-title', headerSubtitle: 'header-subtitle',
-            txModal: 'tx-modal', addTxBtn: 'add-tx-btn', saveTxBtn: 'save-tx-btn', closeModalBtn: 'close-modal-btn', modalDate: 'modal-date', modalDesc: 'modal-desc', modalAmount: 'modal-amount',
-            settingsModal: 'settings-modal', adminManageBtn: 'admin-manage-btn', closeSettingsBtn: 'close-settings-btn', settingActiveMonth: 'setting-active-month', settingNewLimit: 'setting-new-limit', saveLimitBtn: 'save-limit-btn', settingNewMonthPicker: 'setting-new-month-picker', settingNewMonthLimit: 'setting-new-month-limit', addMonthBtn: 'add-month-btn',
-            mergeModal: 'merge-modal', openMergeBtn: 'open-merge-btn', closeMergeBtn: 'close-merge-btn', confirmMergeBtn: 'confirm-merge-btn', mergeSource: 'merge-source-select', mergeDest: 'merge-dest-select',
-            moveTxBtn: 'move-tx-btn', txListContainer: 'transaction-list-container', txListHeader: 'transaction-list-header',
-            deleteModal: 'delete-modal', openDeleteBtn: 'open-delete-btn', closeDeleteBtn: 'close-delete-btn', confirmDeleteBtn: 'confirm-delete-btn', deleteSelect: 'delete-client-select',
-            importLogModal: 'import-log-modal', importLogContent: 'import-log-content', closeImportLogBtn: 'close-import-log-btn', importDoneBtn: 'import-done-btn',
-            uploadBtn: 'upload-btn', uploadInput: 'json-upload', exportBtn: 'export-btn', searchInput: 'search-input',
-            cCardLimit: 'c-card-limit', cCardSpent: 'c-card-spent', cCardRemaining: 'c-card-remaining', cProgressBar: 'c-progress-bar', cUtilizationText: 'c-utilization-text', cTxBody: 'c-tx-body', cTxCount: 'c-tx-count', clientMonthSelector: 'client-month-selector'
-        };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const appId = 'balance-t-default';
 
-        const getEl = (key) => document.getElementById(els[key]);
-        const safeListen = (key, event, handler) => { const el = getEl(key); if (el) el.addEventListener(event, handler); };
+  let state = {
+    firebaseUser: null,
+    accounts: [],
+    currentUser: null,
+    activeAccount: null,
+    selectedGroup: null,
+    selectedMonthLabel: null,
+    loading: true,
+    searchQuery: "",
+    charts: { trend: null, topSpenders: null, dynamic: [], radar: null, clientRadar: null, adminTrend: null, clientTrend: null },
+    filterAccountId: null
+  };
 
-        onAuthStateChanged(auth, (user) => { state.firebaseUser = user; if (user) setupDataListener(); });
-        async function initAuth() { try { if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); } catch (e) {} }
-        
-        function setupDataListener() {
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'accounts'));
-            onSnapshot(q, (snapshot) => {
-                const accounts = [];
-                snapshot.forEach(doc => { const data = doc.data(); data.id = doc.id; accounts.push(data); });
-                state.accounts = accounts;
-                state.loading = false;
-                document.getElementById('login-btn').innerHTML = 'Sign In'; 
-                if(state.currentUser) { 
-                    if(state.currentUser.role === 'admin') { 
-                        renderSidebar();
-                        if(state.activeAccount) renderClientDashboard(); else renderAdminDashboard(); 
-                    } else if (state.currentUser.role === 'client') {
-                         const fresh = state.accounts.find(a => a.id === state.currentUser.id);
-                         if(fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; updateUI(); }
-                    }
-                }
+  const els = {
+    col1List: 'col-1-list',
+    col2List: 'col-2-list',
+    col2Title: 'col-2-title',
+    clientCount: 'client-count',
+    adminView: 'admin-dashboard-view',
+    clientView: 'client-dashboard-view',
+    emptyState: 'empty-state',
+    adminTools: 'admin-tools',
+    sidebarPrimary: 'sidebar-primary',
+    sidebarSecondary: 'sidebar-secondary',
+    clientLogoutBtn: 'client-logout-btn',
+    tickerCurrentPrice: 'ticker-current-price',
+    tickerChange: 'ticker-change',
+    tickerOpen: 'ticker-open',
+    tickerCap: 'ticker-cap',
+    tickerHigh: 'ticker-high',
+    tickerLow: 'ticker-low',
+    tickerRatio: 'ticker-ratio',
+    tickerDividend: 'ticker-dividend',
+    tickerTitle: 'ticker-title',
+    accountCardsContainer: 'account-cards-container',
+    recentActivityList: 'recent-activity-list',
+    dynamicChartsArea: 'dynamic-charts-area',
+    heatmapContainer: 'heatmap-container',
+    headerTitle: 'header-title',
+    headerSubtitle: 'header-subtitle',
+    txModal: 'tx-modal',
+    addTxBtn: 'add-tx-btn',
+    saveTxBtn: 'save-tx-btn',
+    closeModalBtn: 'close-modal-btn',
+    modalDate: 'modal-date',
+    modalDesc: 'modal-desc',
+    modalAmount: 'modal-amount',
+    settingsModal: 'settings-modal',
+    adminManageBtn: 'admin-manage-btn',
+    closeSettingsBtn: 'close-settings-btn',
+    settingActiveMonth: 'setting-active-month',
+    settingNewLimit: 'setting-new-limit',
+    saveLimitBtn: 'save-limit-btn',
+    settingNewMonthPicker: 'setting-new-month-picker',
+    settingNewMonthLimit: 'setting-new-month-limit',
+    addMonthBtn: 'add-month-btn',
+    mergeModal: 'merge-modal',
+    openMergeBtn: 'open-merge-btn',
+    closeMergeBtn: 'close-merge-btn',
+    confirmMergeBtn: 'confirm-merge-btn',
+    mergeSource: 'merge-source-select',
+    mergeDest: 'merge-dest-select',
+    moveTxBtn: 'move-tx-btn',
+    txListContainer: 'transaction-list-container',
+    txListHeader: 'transaction-list-header',
+    deleteModal: 'delete-modal',
+    openDeleteBtn: 'open-delete-btn',
+    closeDeleteBtn: 'close-delete-btn',
+    confirmDeleteBtn: 'confirm-delete-btn',
+    deleteSelect: 'delete-client-select',
+    importLogModal: 'import-log-modal',
+    importLogContent: 'import-log-content',
+    closeImportLogBtn: 'close-import-log-btn',
+    importDoneBtn: 'import-done-btn',
+    uploadBtn: 'upload-btn',
+    uploadInput: 'json-upload',
+    exportBtn: 'export-btn',
+    searchInput: 'search-input',
+    cCardLimit: 'c-card-limit',
+    cCardSpent: 'c-card-spent',
+    cCardRemaining: 'c-card-remaining',
+    cProgressBar: 'c-progress-bar',
+    cUtilizationText: 'c-utilization-text',
+    cTxBody: 'c-tx-body',
+    cTxCount: 'c-tx-count',
+    clientMonthSelector: 'client-month-selector'
+  };
+
+  const getEl = (key) => document.getElementById(els[key]);
+  const safeListen = (key, event, handler) => { const el = getEl(key); if (el) el.addEventListener(event, handler); };
+
+  // ---------- SANITIZERS (NEW) ----------
+  function stripUndefinedDeep(value) {
+    if (value === undefined) return undefined;
+
+    if (Array.isArray(value)) {
+      const out = [];
+      for (const v of value) {
+        const cleaned = stripUndefinedDeep(v);
+        if (cleaned !== undefined) out.push(cleaned);
+      }
+      return out;
+    }
+
+    if (value && typeof value === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(value)) {
+        const cleaned = stripUndefinedDeep(v);
+        if (cleaned !== undefined) out[k] = cleaned;
+      }
+      return out;
+    }
+
+    return value;
+  }
+
+  function normalizeNameKey(name) {
+    return String(name || "")
+      .toLowerCase()
+      .replace(/\([^)]*\)/g, " ")   // remove parenthetical content
+      .replace(/\+\s*\d+\b/g, " ")  // remove +1, +2
+      .replace(/[^a-z0-9\s]/g, " ") // remove punctuation
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\s/g, "_");
+  }
+
+  // ---------- AUTH ----------
+  onAuthStateChanged(auth, (user) => {
+    state.firebaseUser = user;
+    if (user) setupDataListener();
+  });
+
+  async function initAuth() {
+    try {
+      if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token);
+      else await signInAnonymously(auth);
+    } catch (e) {}
+  }
+
+  function setupDataListener() {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'accounts'));
+    onSnapshot(q, (snapshot) => {
+      const accounts = [];
+      snapshot.forEach(d => { const data = d.data(); data.id = d.id; accounts.push(data); });
+      state.accounts = accounts;
+      state.loading = false;
+      document.getElementById('login-btn').innerHTML = 'Sign In';
+
+      if (state.currentUser) {
+        if (state.currentUser.role === 'admin') {
+          renderSidebar();
+          if (state.activeAccount) renderClientDashboard(); else renderAdminDashboard();
+        } else if (state.currentUser.role === 'client') {
+          const fresh = state.accounts.find(a => a.id === state.currentUser.id);
+          if (fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; updateUI(); }
+        }
+      }
+    });
+  }
+
+  // --- ADMIN DASHBOARD ---
+  function renderAdminDashboard() {
+    try {
+      getEl('headerTitle').textContent = "Overview";
+      getEl('headerSubtitle').textContent = "Financial Snapshot";
+
+      if (state.charts.trend) state.charts.trend.destroy();
+      if (state.charts.topSpenders) state.charts.topSpenders.destroy();
+      state.charts.dynamic.forEach(c => c.destroy());
+      state.charts.dynamic = [];
+
+      getEl('dynamicChartsArea').innerHTML = '';
+      getEl('accountCardsContainer').innerHTML = '';
+
+      let totalSpent = 0, totalLimit = 0, totalRemaining = 0, txCount = 0, highTx = 0, lowTx = Infinity, sumTx = 0,
+        cSpends = [], allTxs = [], accountStats = {}, dailySpending = {}, monthlyAggregates = {};
+
+      const targetAccounts = state.filterAccountId ? state.accounts.filter(a => a.accountId == state.filterAccountId) : state.accounts;
+
+      targetAccounts.forEach(acc => {
+        const accId = acc.accountId || 'Unknown';
+        if (!accountStats[accId]) accountStats[accId] = { budget: 0, spent: 0, clients: 0 };
+        accountStats[accId].clients++;
+
+        if (acc.budgetData && Array.isArray(acc.budgetData)) {
+          const b = getCurrentBudget(acc.budgetData);
+          if (b) {
+            const lim = cleanAmount(b.monthlyLimit), sp = calculateRealSpent(b.transactions);
+            accountStats[accId].budget += lim;
+            accountStats[accId].spent += sp;
+            totalSpent += sp;
+            totalLimit += lim;
+
+            if (sp > 0) cSpends.push({ name: acc.clientName, amount: sp });
+
+            getCleanTransactions(b.transactions).forEach(tx => {
+              allTxs.push({ ...tx, client: acc.clientName });
+              const amt = cleanAmount(tx.amount);
+              if (amt > highTx) highTx = amt;
+              if (amt < lowTx) lowTx = amt;
+              sumTx += amt;
+              txCount++;
+              const dObj = new Date(tx.date);
+              if (!isNaN(dObj)) dailySpending[dObj.toISOString().split('T')[0]] = (dailySpending[dObj.toISOString().split('T')[0]] || 0) + amt;
             });
-        }
+          }
 
-        // --- ADMIN DASHBOARD ---
-        function renderAdminDashboard() {
-            try {
-                getEl('headerTitle').textContent = "Overview";
-                getEl('headerSubtitle').textContent = "Financial Snapshot";
-
-                if(state.charts.trend) state.charts.trend.destroy(); if(state.charts.topSpenders) state.charts.topSpenders.destroy(); state.charts.dynamic.forEach(c=>c.destroy()); state.charts.dynamic=[];
-                getEl('dynamicChartsArea').innerHTML = ''; getEl('accountCardsContainer').innerHTML = ''; 
-                let totalSpent=0, totalLimit=0, totalRemaining=0, txCount=0, highTx=0, lowTx=Infinity, sumTx=0, cSpends=[], allTxs=[], accountStats={}, dailySpending={}, monthlyAggregates={};
-                const targetAccounts = state.filterAccountId ? state.accounts.filter(a => a.accountId == state.filterAccountId) : state.accounts;
-                targetAccounts.forEach(acc => {
-                    const accId = acc.accountId || 'Unknown';
-                    if(!accountStats[accId]) accountStats[accId] = { budget:0, spent:0, clients:0 }; accountStats[accId].clients++;
-                    if (acc.budgetData && Array.isArray(acc.budgetData)) {
-                        const b = getCurrentBudget(acc.budgetData);
-                        if(b) {
-                            const lim=cleanAmount(b.monthlyLimit), sp=calculateRealSpent(b.transactions);
-                            accountStats[accId].budget+=lim; accountStats[accId].spent+=sp; totalSpent+=sp; totalLimit+=lim;
-                            if(sp>0) cSpends.push({name:acc.clientName, amount:sp});
-                            getCleanTransactions(b.transactions).forEach(tx => {
-                                allTxs.push({...tx, client:acc.clientName}); const amt=cleanAmount(tx.amount);
-                                if(amt>highTx) highTx=amt; if(amt<lowTx) lowTx=amt; sumTx+=amt; txCount++;
-                                const dObj=new Date(tx.date); if(!isNaN(dObj)) dailySpending[dObj.toISOString().split('T')[0]]=(dailySpending[dObj.toISOString().split('T')[0]]||0)+amt;
-                            });
-                        }
-                        acc.budgetData.forEach(bd => { const mDate=new Date(bd.monthLabel); if(!isNaN(mDate)) { const key = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2,'0')}-01`; if(!monthlyAggregates[key]) monthlyAggregates[key]={spent:0,limit:0,date:new Date(mDate.getFullYear(), mDate.getMonth(), 1)}; monthlyAggregates[key].spent+=calculateRealSpent(bd.transactions); monthlyAggregates[key].limit+=cleanAmount(bd.monthlyLimit); } });
-                    }
-                });
-                totalRemaining=totalLimit-totalSpent; if(lowTx===Infinity) lowTx=0; const avgTx=txCount>0?sumTx/txCount:0;
-
-                getEl('tickerTitle').textContent = state.filterAccountId ? `Account ${state.filterAccountId} Activity` : "Global Activity";
-                getEl('tickerCurrentPrice').textContent = formatCurrency(totalSpent); const pctUsed = totalLimit>0?(totalSpent/totalLimit)*100:0; 
-                getEl('tickerChange').textContent = `${pctUsed.toFixed(1)}% Used`; getEl('tickerChange').className = `block leading-5 text-sm ml-4 font-bold ${pctUsed>100?'text-red-600':'text-green-600'}`;
-                getEl('tickerOpen').textContent=formatCurrency(totalLimit); getEl('tickerCap').textContent=txCount; getEl('tickerHigh').textContent=formatCurrency(highTx); getEl('tickerLow').textContent=formatCurrency(lowTx); getEl('tickerRatio').textContent=formatCurrency(avgTx); getEl('tickerDividend').textContent=formatCurrency(totalRemaining);
-                
-                const labels=[], dataPoints=[]; for(let i=13; i>=0; i--) { const d=new Date(); d.setDate(d.getDate()-i); labels.push(d.toLocaleDateString('en-US',{weekday:'short',day:'numeric'})); dataPoints.push(dailySpending[d.toISOString().split('T')[0]]||0); }
-                state.charts.trend = new Chart(document.getElementById('tickerChart').getContext('2d'), { type:'line', data:{labels:labels, datasets:[{data:dataPoints, borderColor:"rgba(255,255,255,1)", backgroundColor:"rgba(255,255,255,0.1)", pointBackgroundColor:"rgba(255,255,255,1)", borderWidth:2, tension:0.3, fill:true}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, layout:{padding:{right:10,left:10,top:10,bottom:10}}, scales:{x:{ticks:{color:"rgba(255,255,255,0.8)",font:{size:10}},grid:{color:"rgba(255,255,255,0.1)"}},y:{display:false}}} });
-                
-                const sortedIds = Object.keys(accountStats).sort((a,b)=>parseInt(a)-parseInt(b));
-                getEl('accountCardsContainer').innerHTML = sortedIds.map(id => { const s=accountStats[id], isActive=state.filterAccountId==id, rem=s.budget-s.spent; return `<div onclick="window.selectGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive?'border-black bg-gray-50':'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400"><div class="flex justify-between items-start mb-3"><h3 class="text-lg font-bold text-black">Account ${id}</h3><span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300 flex-wrap overflow-hidden">${s.clients} Clients</span></div><div class="grid grid-cols-3 gap-1 mt-2 text-center divide-x divide-gray-100"><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.budget)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.spent)}</p></div><div><p class="text-[9px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-xs font-bold truncate ${rem<0?'text-red-600':'text-green-600'}">${formatCurrency(rem)}</p></div></div></div>`; }).join('');
-                
-                const today = new Date(); const oneYearAgo = new Date(); oneYearAgo.setDate(today.getDate() - 365); let heatmapHTML = ''; for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) { const val = dailySpending[d.toISOString().split('T')[0]] || 0; let level = 'level-0'; if (val > 300) level = 'level-4'; else if (val > 150) level = 'level-3'; else if (val > 50) level = 'level-2'; else if (val > 0) level = 'level-1'; heatmapHTML += `<div class="day-cell ${level}" title="${d.toLocaleDateString()}: ${formatCurrency(val)}"></div>`; } if(getEl('heatmapContainer')) getEl('heatmapContainer').innerHTML = heatmapHTML;
-
-                cSpends.sort((a,b)=>b.amount-a.amount);
-                state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), { type:'bar', indexAxis:'y', data:{labels:cSpends.slice(0,5).map(c=>c.name), datasets:[{data:cSpends.slice(0,5).map(c=>c.amount), backgroundColor:'#000000', borderRadius:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false},y:{grid:{display:false}}}} });
-                allTxs.sort((a,b)=>new Date(b.date)-new Date(a.date)); if(allTxs.length===0) getEl('recentActivityList').innerHTML='<div class="text-center text-sm text-gray-400 italic p-4">No recent transactions.</div>'; else getEl('recentActivityList').innerHTML=allTxs.slice(0,5).map(tx => `<div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100"><div class="flex items-center space-x-3 overflow-hidden"><div class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center text-[10px] font-bold text-black">${getInitials(tx.client)}</div><div class="min-w-0"><div class="text-xs font-bold text-black truncate">${tx.client}</div><div class="text-[10px] text-gray-500 truncate">${tx.description||'No Desc'}</div></div></div><div class="text-xs font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</div></div>`).join('');
-                
-                const grp = targetAccounts.reduce((g, acc) => { const id=acc.accountId||'U'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {}); Object.keys(grp).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(gid => { const d=document.createElement('div'); d.className="bg-white p-5 rounded-lg border border-gray-200"; d.innerHTML=`<h4 class="text-sm font-bold text-black mb-2">Account ${gid}</h4><div class="h-60"><canvas></canvas></div>`; getEl('dynamicChartsArea').appendChild(d); const l=[], v=[]; grp[gid].forEach(acc => { if (acc.budgetData) { const b=getCurrentBudget(acc.budgetData); if(b){ l.push(acc.clientName); v.push(calculateRealSpent(b.transactions)); } } }); state.charts.dynamic.push(new Chart(d.querySelector('canvas').getContext('2d'), { type:'bar', data:{labels:l, datasets:[{label:'Spent', data:v, backgroundColor:'#000000', borderRadius:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#f3f4f6'}},x:{grid:{display:false}}} } })); });
-            } catch(e) { console.error("Dash Error", e); }
-        }
-
-        // --- CLIENT DASHBOARD ---
-        function renderClientDashboard() {
-            const acc = state.activeAccount; if(!acc) return;
-            getEl('headerTitle').textContent = `Welcome, ${acc.clientName}`;
-            getEl('headerSubtitle').textContent = `Account #${acc.accountId} • ${acc.organization || ''}`;
-
-            let b = null; if(state.selectedMonthLabel) b = acc.budgetData.find(bd => bd.monthLabel === state.selectedMonthLabel); if(!b) b = getCurrentBudget(acc.budgetData);
-            if(acc.budgetData) getEl('clientMonthSelector').innerHTML = acc.budgetData.map(bd => `<button onclick="window.setClientMonth('${bd.monthLabel}')" class="px-3 py-1 rounded-md text-xs font-medium transition-colors border ${b && bd.monthLabel===b.monthLabel ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}">${bd.monthLabel}</button>`).join('');
-            if(b) {
-                state.selectedMonthLabel = b.monthLabel; const lim = cleanAmount(b.monthlyLimit), sp = calculateRealSpent(b.transactions), rem = lim - sp;
-                getEl('cCardLimit').textContent = formatCurrency(lim); getEl('cCardSpent').textContent = formatCurrency(sp); getEl('cCardRemaining').textContent = formatCurrency(rem); getEl('cCardRemaining').className = `text-2xl font-bold mt-1 ${rem < 0 ? 'text-red-600' : rem < lim*0.15 ? 'text-yellow-600' : 'text-green-600'}`;
-                const pct = lim > 0 ? Math.min((sp/lim)*100, 100) : 0; getEl('cProgressBar').style.width = pct + '%'; getEl('cProgressBar').className = `h-3 rounded-full transition-all duration-500 ${pct > 100 ? 'bg-red-600' : pct > 85 ? 'bg-yellow-500' : 'bg-black'}`; getEl('cUtilizationText').textContent = `${Math.round(pct)}% Used`;
-                const txs = getCleanTransactions(b.transactions); getEl('cTxCount').textContent = `${txs.length} entries`; txs.sort((a,b)=>new Date(b.date)-new Date(a.date)); getEl('cTxBody').innerHTML = txs.map(tx => `<tr class="hover:bg-gray-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-sm text-black font-mono">${tx.date}</td><td class="px-6 py-4 text-sm text-gray-600">${(!tx.description || tx.description==='undefined') ? '<span class="text-gray-400 italic">No Description</span>' : tx.description}</td><td class="px-6 py-4 text-sm text-right font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</td></tr>`).join('');
+          acc.budgetData.forEach(bd => {
+            const mDate = new Date(bd.monthLabel);
+            if (!isNaN(mDate)) {
+              const key = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}-01`;
+              if (!monthlyAggregates[key]) monthlyAggregates[key] = { spent: 0, limit: 0, date: new Date(mDate.getFullYear(), mDate.getMonth(), 1) };
+              monthlyAggregates[key].spent += calculateRealSpent(bd.transactions);
+              monthlyAggregates[key].limit += cleanAmount(bd.monthlyLimit);
             }
+          });
         }
-        window.setClientMonth = (label) => { state.selectedMonthLabel = label; renderClientDashboard(); }
+      });
 
-        // --- RENDER SIDEBAR ---
-        function renderSidebar() {
-            if (state.currentUser && state.currentUser.role === 'client') return; 
+      totalRemaining = totalLimit - totalSpent;
+      if (lowTx === Infinity) lowTx = 0;
+      const avgTx = txCount > 0 ? sumTx / txCount : 0;
 
-            const filtered = state.accounts.filter(acc => (acc.clientName||'').toLowerCase().includes(state.searchQuery) || (acc.accountId||'').toString().includes(state.searchQuery));
-            const grouped = filtered.reduce((g, acc) => { const id = acc.accountId || 'Unassigned'; if(!g[id]) g[id]=[]; g[id].push(acc); return g; }, {});
-            const ids = Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b));
-            getEl('col1List').innerHTML = ids.map(gid => {
-                const isSelected = state.selectedGroup === gid; const count = grouped[gid].length;
-                return `<button onclick="window.selectGroup('${gid}')" class="w-full text-left p-2 rounded-md mb-1 transition-colors ${isSelected ? 'bg-black text-white' : 'hover:bg-gray-100 text-black'}"><div class="flex flex-col items-center md:items-start"><span class="text-xs font-bold md:hidden">${gid}</span><div class="hidden md:block"><div class="text-xs font-bold">Account ${gid}</div><div class="text-[10px] opacity-70">${count} Client${count>1?'s':''}</div></div></div></button>`;
-            }).join('');
-            if (state.selectedGroup && grouped[state.selectedGroup]) {
-                const clients = grouped[state.selectedGroup].sort((a,b) => (a.clientName||'').localeCompare(b.clientName||''));
-                getEl('col2Title').textContent = `Account ${state.selectedGroup}`;
-                getEl('col2List').innerHTML = clients.map(c => {
-                    const isActive = state.activeAccount?.id === c.id;
-                    return `<button onclick="window.loadClientView('${c.id}')" class="w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center space-x-2 ${isActive ? 'bg-white border border-black shadow-sm' : 'text-gray-600 hover:bg-gray-200'}"><div class="h-5 w-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-black">${getInitials(c.clientName)}</div><span class="truncate">${c.clientName}</span></button>`;
-                }).join('');
-            }
+      getEl('tickerTitle').textContent = state.filterAccountId ? `Account ${state.filterAccountId} Activity` : "Global Activity";
+      getEl('tickerCurrentPrice').textContent = formatCurrency(totalSpent);
+      const pctUsed = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
+
+      getEl('tickerChange').textContent = `${pctUsed.toFixed(1)}% Used`;
+      getEl('tickerChange').className = `block leading-5 text-sm ml-4 font-bold ${pctUsed > 100 ? 'text-red-600' : 'text-green-600'}`;
+      getEl('tickerOpen').textContent = formatCurrency(totalLimit);
+      getEl('tickerCap').textContent = txCount;
+      getEl('tickerHigh').textContent = formatCurrency(highTx);
+      getEl('tickerLow').textContent = formatCurrency(lowTx);
+      getEl('tickerRatio').textContent = formatCurrency(avgTx);
+      getEl('tickerDividend').textContent = formatCurrency(totalRemaining);
+
+      const labels = [], dataPoints = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+        dataPoints.push(dailySpending[d.toISOString().split('T')[0]] || 0);
+      }
+
+      state.charts.trend = new Chart(document.getElementById('tickerChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataPoints,
+            borderColor: "rgba(255,255,255,1)",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            pointBackgroundColor: "rgba(255,255,255,1)",
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          layout: { padding: { right: 10, left: 10, top: 10, bottom: 10 } },
+          scales: {
+            x: { ticks: { color: "rgba(255,255,255,0.8)", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.1)" } },
+            y: { display: false }
+          }
         }
-        
-        window.selectGroup = (gid) => { state.selectedGroup = gid; state.filterAccountId = gid; renderSidebar(); const root = document.querySelector('[x-data]'); if(root && root.__x) root.__x.$data.openSecondColumn(); if(state.currentUser.role === 'admin') { state.activeAccount = null; getEl('clientView').classList.add('hidden'); getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } };
-        
-        window.resetToOverview = () => { 
-            state.selectedGroup = null; state.activeAccount = null; state.filterAccountId = null; 
-            renderSidebar(); 
-            // FIX: Reset Header Title
-            getEl('headerTitle').textContent = "Overview";
-            getEl('headerSubtitle').textContent = "Financial Snapshot";
-            const root = document.querySelector('[x-data]'); if(root && root.__x) root.__x.$data.closeSecondColumn(); 
-            getEl('clientView').classList.add('hidden'); getEl('emptyState').classList.add('hidden'); 
-            if(state.accounts.length>0) { getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); } else getEl('emptyState').classList.remove('hidden'); 
-        };
-        
-        // --- Standard Logic & Helpers ---
-        function cleanAmount(val) { if (typeof val === 'number') return val; if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g,"")) || 0; return 0; }
-        function getCleanTransactions(transactions) { if(!transactions) return []; return transactions.filter(tx => tx.date !== 'Monthly Limit' && tx.description !== 'Monthly Limit'); }
-        function calculateRealSpent(transactions) { const clean = getCleanTransactions(transactions); return clean.reduce((sum, tx) => sum + cleanAmount(tx.amount), 0); }
-        function getCurrentBudget(budgetData) { if (!budgetData || budgetData.length === 0) return null; const now = new Date(); const exactMatch = budgetData.find(b => { const d = new Date(b.monthLabel); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }); if (exactMatch) return exactMatch; const sorted = [...budgetData].sort((a,b) => new Date(b.monthLabel) - new Date(a.monthLabel)); return sorted[0]; }
-        Number.prototype.m_formatter = function() { return this > 999999 ? (this / 1000000).toFixed(1) + 'M' : this; };
-        const formatCurrency = (amt) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amt);
-        function getInitials(name) { return (name||'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase(); }
+      });
 
-        window.loadClientView = (id, mLabel=null) => { const acc = state.accounts.find(a => a.id === id); if(!acc) return; state.activeAccount = acc; state.selectedMonthLabel = mLabel; getEl('adminView').classList.add('hidden'); getEl('emptyState').classList.add('hidden'); getEl('clientView').classList.remove('hidden'); if(state.currentUser && state.currentUser.role === 'admin') getEl('adminManageBtn').classList.remove('hidden'); else getEl('adminManageBtn').classList.add('hidden'); renderClientDashboard(); renderSidebar(); };
+      const sortedIds = Object.keys(accountStats).sort((a, b) => parseInt(a) - parseInt(b));
+      getEl('accountCardsContainer').innerHTML = sortedIds.map(id => {
+        const s = accountStats[id], isActive = state.filterAccountId == id, rem = s.budget - s.spent;
+        return `<div onclick="window.selectGroup('${id}')" class="account-card bg-white rounded-lg border ${isActive ? 'border-black bg-gray-50' : 'border-gray-200'} p-5 cursor-pointer hover:shadow-none hover:border-gray-400">
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="text-lg font-bold text-black">Account ${id}</h3>
+            <span class="text-xs font-medium bg-gray-100 text-black px-2 py-1 rounded border border-gray-300 flex-wrap overflow-hidden">${s.clients} Clients</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1 mt-2 text-center divide-x divide-gray-100">
+            <div><p class="text-[9px] text-gray-400 uppercase font-semibold">Budget</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.budget)}</p></div>
+            <div><p class="text-[9px] text-gray-400 uppercase font-semibold">Spent</p><p class="text-xs font-bold text-black truncate">${formatCurrency(s.spent)}</p></div>
+            <div><p class="text-[9px] text-gray-400 uppercase font-semibold">Remain</p><p class="text-xs font-bold truncate ${rem < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(rem)}</p></div>
+          </div>
+        </div>`;
+      }).join('');
 
-        // --- BUTTON BINDINGS ---
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault(); const u=document.getElementById('login-username').value.trim().toLowerCase(), p=document.getElementById('login-password').value.trim();
-            document.getElementById('login-error').classList.add('hidden');
-            if(state.loading) return; 
-            if(u==='admin' && p==='admin') { state.currentUser = {role:'admin', name:'Admin'}; updateUI(); return; }
-            const match = state.accounts.find(acc => (acc.clientName||'').replace(/\s+/g, '.').toLowerCase() === u);
-            if (!match) { document.getElementById('login-error').textContent="User not found"; document.getElementById('login-error').classList.remove('hidden'); return; }
-            if (p !== (match.auth_password || 'Password')) { document.getElementById('login-error').textContent="Bad password"; document.getElementById('login-error').classList.remove('hidden'); return; }
-            state.currentUser = {role:'client', name:match.clientName, id:match.id, data:match}; updateUI();
+      const today = new Date();
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(today.getDate() - 365);
+
+      let heatmapHTML = '';
+      for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
+        const val = dailySpending[d.toISOString().split('T')[0]] || 0;
+        let level = 'level-0';
+        if (val > 300) level = 'level-4';
+        else if (val > 150) level = 'level-3';
+        else if (val > 50) level = 'level-2';
+        else if (val > 0) level = 'level-1';
+        heatmapHTML += `<div class="day-cell ${level}" title="${d.toLocaleDateString()}: ${formatCurrency(val)}"></div>`;
+      }
+      if (getEl('heatmapContainer')) getEl('heatmapContainer').innerHTML = heatmapHTML;
+
+      cSpends.sort((a, b) => b.amount - a.amount);
+      state.charts.topSpenders = new Chart(document.getElementById('topSpendersChart').getContext('2d'), {
+        type: 'bar',
+        indexAxis: 'y',
+        data: { labels: cSpends.slice(0, 5).map(c => c.name), datasets: [{ data: cSpends.slice(0, 5).map(c => c.amount), backgroundColor: '#000000', borderRadius: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false } } } }
+      });
+
+      allTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (allTxs.length === 0) {
+        getEl('recentActivityList').innerHTML = '<div class="text-center text-sm text-gray-400 italic p-4">No recent transactions.</div>';
+      } else {
+        getEl('recentActivityList').innerHTML = allTxs.slice(0, 5).map(tx => `
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+            <div class="flex items-center space-x-3 overflow-hidden">
+              <div class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center text-[10px] font-bold text-black">${getInitials(tx.client)}</div>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-black truncate">${tx.client}</div>
+                <div class="text-[10px] text-gray-500 truncate">${tx.description || 'No Desc'}</div>
+              </div>
+            </div>
+            <div class="text-xs font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</div>
+          </div>
+        `).join('');
+      }
+
+      const grp = targetAccounts.reduce((g, acc) => { const id = acc.accountId || 'U'; if (!g[id]) g[id] = []; g[id].push(acc); return g; }, {});
+      Object.keys(grp).sort((a, b) => parseInt(a) - parseInt(b)).forEach(gid => {
+        const d = document.createElement('div');
+        d.className = "bg-white p-5 rounded-lg border border-gray-200";
+        d.innerHTML = `<h4 class="text-sm font-bold text-black mb-2">Account ${gid}</h4><div class="h-60"><canvas></canvas></div>`;
+        getEl('dynamicChartsArea').appendChild(d);
+
+        const l = [], v = [];
+        grp[gid].forEach(acc => {
+          if (acc.budgetData) {
+            const b = getCurrentBudget(acc.budgetData);
+            if (b) { l.push(acc.clientName); v.push(calculateRealSpent(b.transactions)); }
+          }
         });
-        
-        function updateUI() {
-            document.getElementById('auth-layer').classList.add('hidden');
-            document.getElementById('logged-user-name').textContent = state.currentUser.name;
-            document.getElementById('user-role').textContent = state.currentUser.role.toUpperCase();
-            document.getElementById('user-avatar').textContent = getInitials(state.currentUser.name);
-            
-            if(state.currentUser.role === 'client') { 
-                state.activeAccount = state.currentUser.data;
-                getEl('sidebarPrimary').classList.add('hidden');
-                getEl('sidebarSecondary').classList.add('hidden');
-                getEl('clientLogoutBtn').classList.remove('hidden');
-                getEl('adminView').classList.add('hidden'); 
-                getEl('adminManageBtn').classList.add('hidden'); 
-                getEl('clientView').classList.remove('hidden'); 
-                renderClientDashboard(); 
-            } 
-            else { 
-                getEl('sidebarPrimary').classList.remove('hidden');
-                getEl('clientLogoutBtn').classList.add('hidden');
-                getEl('adminTools').classList.remove('hidden'); 
-                renderSidebar(); 
-                if(state.accounts.length>0) { 
-                    getEl('emptyState').classList.add('hidden'); 
-                    getEl('adminView').classList.remove('hidden'); 
-                    renderAdminDashboard(); 
-                } else {
-                    getEl('emptyState').classList.remove('hidden'); 
-                }
-            }
+
+        state.charts.dynamic.push(new Chart(d.querySelector('canvas').getContext('2d'), {
+          type: 'bar',
+          data: { labels: l, datasets: [{ label: 'Spent', data: v, backgroundColor: '#000000', borderRadius: 2 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } } }
+        }));
+      });
+
+    } catch (e) { console.error("Dash Error", e); }
+  }
+
+  // --- CLIENT DASHBOARD ---
+  function renderClientDashboard() {
+    const acc = state.activeAccount;
+    if (!acc) return;
+
+    getEl('headerTitle').textContent = `Welcome, ${acc.clientName}`;
+    getEl('headerSubtitle').textContent = `Account #${acc.accountId} • ${acc.organization || ''}`;
+
+    let b = null;
+    if (state.selectedMonthLabel) b = acc.budgetData.find(bd => bd.monthLabel === state.selectedMonthLabel);
+    if (!b) b = getCurrentBudget(acc.budgetData);
+
+    if (acc.budgetData) {
+      getEl('clientMonthSelector').innerHTML = acc.budgetData.map(bd => `
+        <button onclick="window.setClientMonth('${bd.monthLabel}')" class="px-3 py-1 rounded-md text-xs font-medium transition-colors border ${b && bd.monthLabel === b.monthLabel ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}">
+          ${bd.monthLabel}
+        </button>
+      `).join('');
+    }
+
+    if (b) {
+      state.selectedMonthLabel = b.monthLabel;
+      const lim = cleanAmount(b.monthlyLimit), sp = calculateRealSpent(b.transactions), rem = lim - sp;
+
+      getEl('cCardLimit').textContent = formatCurrency(lim);
+      getEl('cCardSpent').textContent = formatCurrency(sp);
+      getEl('cCardRemaining').textContent = formatCurrency(rem);
+      getEl('cCardRemaining').className = `text-2xl font-bold mt-1 ${rem < 0 ? 'text-red-600' : rem < lim * 0.15 ? 'text-yellow-600' : 'text-green-600'}`;
+
+      const pct = lim > 0 ? Math.min((sp / lim) * 100, 100) : 0;
+      getEl('cProgressBar').style.width = pct + '%';
+      getEl('cProgressBar').className = `h-3 rounded-full transition-all duration-500 ${pct > 100 ? 'bg-red-600' : pct > 85 ? 'bg-yellow-500' : 'bg-black'}`;
+      getEl('cUtilizationText').textContent = `${Math.round(pct)}% Used`;
+
+      const txs = getCleanTransactions(b.transactions);
+      getEl('cTxCount').textContent = `${txs.length} entries`;
+      txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      getEl('cTxBody').innerHTML = txs.map(tx => `
+        <tr class="hover:bg-gray-50 transition-colors border-b border-gray-100">
+          <td class="px-6 py-4 text-sm text-black font-mono">${tx.date}</td>
+          <td class="px-6 py-4 text-sm text-gray-600">${(!tx.description || tx.description === 'undefined') ? '<span class="text-gray-400 italic">No Description</span>' : tx.description}</td>
+          <td class="px-6 py-4 text-sm text-right font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  window.setClientMonth = (label) => { state.selectedMonthLabel = label; renderClientDashboard(); };
+
+  // --- RENDER SIDEBAR ---
+  function renderSidebar() {
+    if (state.currentUser && state.currentUser.role === 'client') return;
+
+    const filtered = state.accounts.filter(acc =>
+      (acc.clientName || '').toLowerCase().includes(state.searchQuery) ||
+      (acc.accountId || '').toString().includes(state.searchQuery)
+    );
+
+    const grouped = filtered.reduce((g, acc) => { const id = acc.accountId || 'Unassigned'; if (!g[id]) g[id] = []; g[id].push(acc); return g; }, {});
+    const ids = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+
+    getEl('col1List').innerHTML = ids.map(gid => {
+      const isSelected = state.selectedGroup === gid;
+      const count = grouped[gid].length;
+      return `<button onclick="window.selectGroup('${gid}')" class="w-full text-left p-2 rounded-md mb-1 transition-colors ${isSelected ? 'bg-black text-white' : 'hover:bg-gray-100 text-black'}">
+        <div class="flex flex-col items-center md:items-start">
+          <span class="text-xs font-bold md:hidden">${gid}</span>
+          <div class="hidden md:block">
+            <div class="text-xs font-bold">Account ${gid}</div>
+            <div class="text-[10px] opacity-70">${count} Client${count > 1 ? 's' : ''}</div>
+          </div>
+        </div>
+      </button>`;
+    }).join('');
+
+    if (state.selectedGroup && grouped[state.selectedGroup]) {
+      const clients = grouped[state.selectedGroup].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''));
+      getEl('col2Title').textContent = `Account ${state.selectedGroup}`;
+      getEl('col2List').innerHTML = clients.map(c => {
+        const isActive = state.activeAccount?.id === c.id;
+        return `<button onclick="window.loadClientView('${c.id}')" class="w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center space-x-2 ${isActive ? 'bg-white border border-black shadow-sm' : 'text-gray-600 hover:bg-gray-200'}">
+          <div class="h-5 w-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-black">${getInitials(c.clientName)}</div>
+          <span class="truncate">${c.clientName}</span>
+        </button>`;
+      }).join('');
+    }
+  }
+
+  window.selectGroup = (gid) => {
+    state.selectedGroup = gid;
+    state.filterAccountId = gid;
+    renderSidebar();
+    const root = document.querySelector('[x-data]');
+    if (root && root.__x) root.__x.$data.openSecondColumn();
+    if (state.currentUser.role === 'admin') {
+      state.activeAccount = null;
+      getEl('clientView').classList.add('hidden');
+      getEl('adminView').classList.remove('hidden');
+      renderAdminDashboard();
+    }
+  };
+
+  window.resetToOverview = () => {
+    state.selectedGroup = null;
+    state.activeAccount = null;
+    state.filterAccountId = null;
+    renderSidebar();
+    getEl('headerTitle').textContent = "Overview";
+    getEl('headerSubtitle').textContent = "Financial Snapshot";
+    const root = document.querySelector('[x-data]');
+    if (root && root.__x) root.__x.$data.closeSecondColumn();
+    getEl('clientView').classList.add('hidden');
+    getEl('emptyState').classList.add('hidden');
+    if (state.accounts.length > 0) { getEl('adminView').classList.remove('hidden'); renderAdminDashboard(); }
+    else getEl('emptyState').classList.remove('hidden');
+  };
+
+  // --- Standard Logic & Helpers ---
+  function cleanAmount(val) { if (typeof val === 'number') return val; if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g, "")) || 0; return 0; }
+  function getCleanTransactions(transactions) { if (!transactions) return []; return transactions.filter(tx => tx.date !== 'Monthly Limit' && tx.description !== 'Monthly Limit'); }
+  function calculateRealSpent(transactions) { const clean = getCleanTransactions(transactions); return clean.reduce((sum, tx) => sum + cleanAmount(tx.amount), 0); }
+  function getCurrentBudget(budgetData) {
+    if (!budgetData || budgetData.length === 0) return null;
+    const now = new Date();
+    const exactMatch = budgetData.find(b => { const d = new Date(b.monthLabel); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+    if (exactMatch) return exactMatch;
+    const sorted = [...budgetData].sort((a, b) => new Date(b.monthLabel) - new Date(a.monthLabel));
+    return sorted[0];
+  }
+  Number.prototype.m_formatter = function () { return this > 999999 ? (this / 1000000).toFixed(1) + 'M' : this; };
+  const formatCurrency = (amt) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amt);
+  function getInitials(name) { return (name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(); }
+
+  window.loadClientView = (id, mLabel = null) => {
+    const acc = state.accounts.find(a => a.id === id);
+    if (!acc) return;
+    state.activeAccount = acc;
+    state.selectedMonthLabel = mLabel;
+    getEl('adminView').classList.add('hidden');
+    getEl('emptyState').classList.add('hidden');
+    getEl('clientView').classList.remove('hidden');
+    if (state.currentUser && state.currentUser.role === 'admin') getEl('adminManageBtn').classList.remove('hidden');
+    else getEl('adminManageBtn').classList.add('hidden');
+    renderClientDashboard();
+    renderSidebar();
+  };
+
+  // --- BUTTON BINDINGS ---
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const u = document.getElementById('login-username').value.trim().toLowerCase(),
+          p = document.getElementById('login-password').value.trim();
+
+    document.getElementById('login-error').classList.add('hidden');
+    if (state.loading) return;
+
+    if (u === 'admin' && p === 'admin') { state.currentUser = { role: 'admin', name: 'Admin' }; updateUI(); return; }
+
+    const match = state.accounts.find(acc => (acc.clientName || '').replace(/\s+/g, '.').toLowerCase() === u);
+    if (!match) { document.getElementById('login-error').textContent = "User not found"; document.getElementById('login-error').classList.remove('hidden'); return; }
+    if (p !== (match.auth_password || 'Password')) { document.getElementById('login-error').textContent = "Bad password"; document.getElementById('login-error').classList.remove('hidden'); return; }
+
+    state.currentUser = { role: 'client', name: match.clientName, id: match.id, data: match };
+    updateUI();
+  });
+
+  function updateUI() {
+    document.getElementById('auth-layer').classList.add('hidden');
+    document.getElementById('logged-user-name').textContent = state.currentUser.name;
+    document.getElementById('user-role').textContent = state.currentUser.role.toUpperCase();
+    document.getElementById('user-avatar').textContent = getInitials(state.currentUser.name);
+
+    if (state.currentUser.role === 'client') {
+      state.activeAccount = state.currentUser.data;
+      getEl('sidebarPrimary').classList.add('hidden');
+      getEl('sidebarSecondary').classList.add('hidden');
+      getEl('clientLogoutBtn').classList.remove('hidden');
+      getEl('adminView').classList.add('hidden');
+      getEl('adminManageBtn').classList.add('hidden');
+      getEl('clientView').classList.remove('hidden');
+      renderClientDashboard();
+    } else {
+      getEl('sidebarPrimary').classList.remove('hidden');
+      getEl('clientLogoutBtn').classList.add('hidden');
+      getEl('adminTools').classList.remove('hidden');
+      renderSidebar();
+      if (state.accounts.length > 0) {
+        getEl('emptyState').classList.add('hidden');
+        getEl('adminView').classList.remove('hidden');
+        renderAdminDashboard();
+      } else {
+        getEl('emptyState').classList.remove('hidden');
+      }
+    }
+  }
+
+  safeListen('searchInput', 'input', (e) => { state.searchQuery = e.target.value.toLowerCase().trim(); renderSidebar(); });
+
+  // --- IMPORT LOGBOOK ---
+  const logModal = getEl('importLogModal');
+  const logContent = getEl('importLogContent');
+  const addLog = (msg, type = 'info') => {
+    const color = type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-600');
+    const div = document.createElement('div');
+    div.className = color;
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logContent.appendChild(div);
+    logContent.scrollTop = logContent.scrollHeight;
+  };
+
+  safeListen('uploadBtn', 'click', () => getEl('uploadInput').click());
+
+  // -------------------- IMPORT (UPDATED) --------------------
+  safeListen('uploadInput', 'change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    logContent.innerHTML = '';
+    logModal.classList.remove('hidden');
+    getEl('importDoneBtn').classList.add('hidden');
+    addLog("Reading file...", 'info');
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const rawJson = ev.target.result;
+        let json;
+        try { json = JSON.parse(rawJson); }
+        catch { throw new Error("Invalid JSON File. Please check format."); }
+
+        const data = Array.isArray(json) ? json : [json];
+        addLog(`File parsed. Found ${data.length} records.`, 'info');
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const c of data) {
+          try {
+            if (!c.clientName || !c.accountId) throw new Error("Missing clientName or accountId");
+
+            // deterministic id (reduces duplicates caused by punctuation/parenthesis/+1)
+            const id = `client_${normalizeNameKey(c.clientName)}_${c.accountId || "000"}`;
+
+            // If this document already exists in current state, preserve its password fields safely
+            const exist = state.accounts.find(a => a.id === id);
+
+            const existingPass =
+              exist && typeof exist.auth_password === "string" && exist.auth_password.trim()
+                ? exist.auth_password.trim()
+                : "Password";
+
+            const existingChanged =
+              exist && typeof exist.auth_password_changed === "boolean"
+                ? exist.auth_password_changed
+                : false;
+
+            const docDataRaw = {
+              clientName: c.clientName,
+              organization: c.organization || 'Imported',
+              accountId: c.accountId,
+              budgetData: Array.isArray(c.budgetData) ? c.budgetData : [],
+              lastUpdated: new Date().toISOString(),
+              auth_password: existingPass,
+              auth_password_changed: existingChanged
+            };
+
+            // Critical: strip undefined anywhere (especially inside budgetData)
+            const docData = stripUndefinedDeep(docDataRaw);
+
+            await setDoc(
+              doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id),
+              docData
+            );
+
+            addLog(`✅ Imported: ${c.clientName}`, 'success');
+            successCount++;
+          } catch (recErr) {
+            addLog(`❌ Failed: ${c.clientName || 'Unknown'} - ${recErr.message}`, 'error');
+            failCount++;
+          }
         }
 
-        safeListen('searchInput', 'input', (e) => { state.searchQuery = e.target.value.toLowerCase().trim(); renderSidebar(); });
-        
-        // --- IMPORT LOGBOOK ---
-        const logModal = getEl('importLogModal');
-        const logContent = getEl('importLogContent');
-        const addLog = (msg, type='info') => {
-            const color = type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-600');
-            const div = document.createElement('div');
-            div.className = color;
-            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logContent.appendChild(div);
-            logContent.scrollTop = logContent.scrollHeight;
+        addLog(`--- IMPORT COMPLETE ---`, 'info');
+        addLog(`Success: ${successCount} | Failed: ${failCount}`, 'info');
+        getEl('importDoneBtn').classList.remove('hidden');
+      } catch (err) {
+        addLog(`CRITICAL ERROR: ${err.message}`, 'error');
+        getEl('importDoneBtn').classList.remove('hidden');
+      }
+    };
+
+    reader.readAsText(file);
+  });
+
+  safeListen('closeImportLogBtn', 'click', () => logModal.classList.add('hidden'));
+  safeListen('importDoneBtn', 'click', () => { logModal.classList.add('hidden'); window.location.reload(); });
+
+  // --- EXPORT ---
+  safeListen('exportBtn', 'click', () => {
+    if (!state.accounts || state.accounts.length === 0) { alert("No data to export."); return; }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.accounts, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "accounts_data.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  });
+
+  // --- MERGE TOOL ---
+  safeListen('openMergeBtn', 'click', () => {
+    const opts = state.accounts
+      .sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''))
+      .map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`)
+      .join('');
+
+    getEl('mergeSource').innerHTML = '<option value="">Select Source...</option>' + opts;
+    getEl('mergeDest').innerHTML = '<option value="">Select Destination...</option>' + opts;
+    getEl('mergeModal').classList.remove('hidden');
+    getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div>';
+    getEl('txListHeader').classList.add('hidden');
+    getEl('moveTxBtn').classList.add('hidden');
+  });
+
+  safeListen('closeMergeBtn', 'click', () => getEl('mergeModal').classList.add('hidden'));
+
+  safeListen('mergeSource', 'change', () => {
+    const sId = getEl('mergeSource').value;
+    if (!sId) return;
+
+    const acc = state.accounts.find(a => a.id === sId);
+    if (!acc || !acc.budgetData) { getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400">No transactions found.</div>'; return; }
+
+    getEl('txListHeader').classList.remove('hidden');
+    getEl('moveTxBtn').classList.remove('hidden');
+
+    let html = '';
+    acc.budgetData.forEach((m, mIdx) => {
+      if (m.transactions && m.transactions.length > 0) {
+        m.transactions.forEach((tx, tIdx) => {
+          if (tx.date !== 'Monthly Limit') {
+            const val = `${mIdx}|${tIdx}`;
+            html += `<div class="flex items-center p-2 hover:bg-gray-100 border-b border-gray-100">
+              <input type="checkbox" class="tx-check mr-2" value="${val}">
+              <div class="text-xs flex-1">
+                <span class="font-bold">${tx.date}</span>
+                <span class="text-gray-500">${tx.description || 'No Desc'}</span>
+              </div>
+              <div class="text-xs font-bold">${formatCurrency(cleanAmount(tx.amount))}</div>
+            </div>`;
+          }
+        });
+      }
+    });
+    getEl('txListContainer').innerHTML = html || '<div class="text-center text-xs text-gray-400">No transactions found.</div>';
+  });
+
+  safeListen('moveTxBtn', 'click', async () => {
+    const sId = getEl('mergeSource').value;
+    const dId = getEl('mergeDest').value;
+    if (!sId || !dId || sId === dId) return alert("Select distinct Source and Destination.");
+
+    const checkboxes = document.querySelectorAll('.tx-check:checked');
+    if (checkboxes.length === 0) return alert("No transactions selected.");
+    if (!confirm(`Move ${checkboxes.length} transactions to Destination?`)) return;
+
+    try {
+      const sAcc = state.accounts.find(a => a.id === sId);
+      const dAcc = state.accounts.find(a => a.id === dId);
+
+      const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData));
+      const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
+
+      const toMove = Array.from(checkboxes)
+        .map(cb => cb.value.split('|').map(Number))
+        .sort((a, b) => b[1] - a[1]);
+
+      toMove.forEach(([mIdx, tIdx]) => {
+        const tx = sBudget[mIdx].transactions[tIdx];
+        sBudget[mIdx].transactions.splice(tIdx, 1);
+        sBudget[mIdx].totalSpent -= cleanAmount(tx.amount);
+        sBudget[mIdx].remainingBudget += cleanAmount(tx.amount);
+
+        const txDate = new Date(tx.date);
+        let dMIdx = dBudget.findIndex(b => {
+          const d = new Date(b.monthLabel);
+          return d.getMonth() === txDate.getMonth() && d.getFullYear() === txDate.getFullYear();
+        });
+
+        if (dMIdx === -1) {
+          dBudget.push({ monthLabel: `${txDate.getMonth() + 1}/1/${txDate.getFullYear()}`, monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] });
+          dMIdx = dBudget.length - 1;
         }
 
-        safeListen('uploadBtn', 'click', () => getEl('uploadInput').click());
-        safeListen('uploadInput', 'change', async (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            logContent.innerHTML = '';
-            logModal.classList.remove('hidden');
-            getEl('importDoneBtn').classList.add('hidden'); 
-            addLog("Reading file...", 'info');
-            const reader = new FileReader(); 
-            reader.onload = async (ev) => { 
-                try { 
-                    const rawJson = ev.target.result;
-                    let json; try { json = JSON.parse(rawJson); } catch (parseErr) { throw new Error("Invalid JSON File. Please check format."); }
-                    const data = Array.isArray(json) ? json : [json];
-                    addLog(`File parsed. Found ${data.length} records.`, 'info');
-                    let successCount = 0; let failCount = 0;
-                    for (const c of data) {
-                        try {
-                            if (!c.clientName || !c.accountId) { throw new Error("Missing clientName or accountId"); }
-                            const id = `client_${(c.clientName||'').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${c.accountId||'000'}`;
-                            const exist = state.accounts.find(a => a.id === id);
-                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id), { 
-                                clientName: c.clientName, organization: c.organization || 'Imported', accountId: c.accountId, budgetData: c.budgetData || [], lastUpdated: new Date().toISOString(), auth_password: exist ? exist.auth_password : 'Password', auth_password_changed: exist ? exist.auth_password_changed : false 
-                            });
-                            addLog(`✅ Imported: ${c.clientName}`, 'success'); successCount++;
-                        } catch (recErr) { addLog(`❌ Failed: ${c.clientName || 'Unknown'} - ${recErr.message}`, 'error'); failCount++; }
-                    }
-                    addLog(`--- IMPORT COMPLETE ---`, 'info'); addLog(`Success: ${successCount} | Failed: ${failCount}`, 'info');
-                    getEl('importDoneBtn').classList.remove('hidden');
-                } catch (err) { addLog(`CRITICAL ERROR: ${err.message}`, 'error'); getEl('importDoneBtn').classList.remove('hidden'); } 
-            }; 
-            reader.readAsText(file);
+        if (!dBudget[dMIdx].transactions) dBudget[dMIdx].transactions = [];
+        dBudget[dMIdx].transactions.push(tx);
+        dBudget[dMIdx].totalSpent += cleanAmount(tx.amount);
+        dBudget[dMIdx].remainingBudget = cleanAmount(dBudget[dMIdx].monthlyLimit) - dBudget[dMIdx].totalSpent;
+      });
+
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId), { budgetData: sBudget });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: dBudget });
+
+      getEl('mergeModal').classList.add('hidden');
+      alert("Transactions Moved Successfully.");
+    } catch (e) {
+      console.error(e);
+      alert("Move Failed.");
+    }
+  });
+
+  safeListen('confirmMergeBtn', 'click', async () => {
+    const sId = getEl('mergeSource').value;
+    const dId = getEl('mergeDest').value;
+    if (!sId || !dId || sId === dId) return alert("Invalid Selection");
+    if (!confirm("DELETE source account?")) return;
+
+    try {
+      const sourceAcc = state.accounts.find(a => a.id === sId);
+      const destAcc = state.accounts.find(a => a.id === dId);
+
+      let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || []));
+
+      if (sourceAcc.budgetData) {
+        sourceAcc.budgetData.forEach(sMonth => {
+          const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel);
+          if (existingIdx !== -1) {
+            const destMonth = newBudget[existingIdx];
+            const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])];
+            const newSpent = calculateRealSpent(combinedTx);
+            newBudget[existingIdx].transactions = combinedTx;
+            newBudget[existingIdx].totalSpent = newSpent;
+            newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent;
+          } else {
+            newBudget.push(sMonth);
+          }
         });
+      }
 
-        safeListen('closeImportLogBtn', 'click', () => logModal.classList.add('hidden'));
-        safeListen('importDoneBtn', 'click', () => { logModal.classList.add('hidden'); window.location.reload(); });
+      newBudget.sort((a, b) => new Date(a.monthLabel) - new Date(b.monthLabel));
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget });
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId));
 
-        // --- EXPORT ---
-        safeListen('exportBtn', 'click', () => {
-            if(!state.accounts || state.accounts.length === 0) { alert("No data to export."); return; }
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.accounts, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "accounts_data.json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        });
+      getEl('mergeModal').classList.add('hidden');
+      alert("Merged");
+    } catch (err) {
+      console.error(err);
+      alert("Merge failed");
+    }
+  });
 
-        safeListen('openMergeBtn', 'click', () => { const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`).join(''); getEl('mergeSource').innerHTML = '<option value="">Select Source...</option>' + opts; getEl('mergeDest').innerHTML = '<option value="">Select Destination...</option>' + opts; getEl('mergeModal').classList.remove('hidden'); getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div>'; getEl('txListHeader').classList.add('hidden'); getEl('moveTxBtn').classList.add('hidden'); });
-        safeListen('closeMergeBtn', 'click', () => getEl('mergeModal').classList.add('hidden'));
-        
-        safeListen('mergeSource', 'change', () => {
-            const sId = getEl('mergeSource').value;
-            if(!sId) return;
-            const acc = state.accounts.find(a => a.id === sId);
-            if(!acc || !acc.budgetData) { getEl('txListContainer').innerHTML = '<div class="text-center text-xs text-gray-400">No transactions found.</div>'; return; }
-            getEl('txListHeader').classList.remove('hidden'); getEl('moveTxBtn').classList.remove('hidden');
-            let html = ''; acc.budgetData.forEach((m, mIdx) => { if(m.transactions && m.transactions.length > 0) { m.transactions.forEach((tx, tIdx) => { if(tx.date !== 'Monthly Limit') { const val = `${mIdx}|${tIdx}`; html += `<div class="flex items-center p-2 hover:bg-gray-100 border-b border-gray-100"><input type="checkbox" class="tx-check mr-2" value="${val}"><div class="text-xs flex-1"><span class="font-bold">${tx.date}</span> <span class="text-gray-500">${tx.description || 'No Desc'}</span></div><div class="text-xs font-bold">${formatCurrency(cleanAmount(tx.amount))}</div></div>`; } }); } });
-            getEl('txListContainer').innerHTML = html || '<div class="text-center text-xs text-gray-400">No transactions found.</div>';
-        });
+  // --- DELETE CLIENT ---
+  safeListen('openDeleteBtn', 'click', () => {
+    const opts = state.accounts
+      .sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''))
+      .map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`)
+      .join('');
 
-        safeListen('moveTxBtn', 'click', async () => {
-            const sId = getEl('mergeSource').value; const dId = getEl('mergeDest').value;
-            if(!sId || !dId || sId === dId) return alert("Select distinct Source and Destination.");
-            const checkboxes = document.querySelectorAll('.tx-check:checked');
-            if(checkboxes.length === 0) return alert("No transactions selected.");
-            if(!confirm(`Move ${checkboxes.length} transactions to Destination?`)) return;
+    getEl('deleteSelect').innerHTML = '<option value="">Select Client...</option>' + opts;
+    getEl('deleteModal').classList.remove('hidden');
+  });
 
-            try {
-                const sAcc = state.accounts.find(a => a.id === sId); const dAcc = state.accounts.find(a => a.id === dId);
-                const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData)); const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
-                const toMove = Array.from(checkboxes).map(cb => cb.value.split('|').map(Number)).sort((a,b) => b[1] - a[1]); 
+  safeListen('closeDeleteBtn', 'click', () => getEl('deleteModal').classList.add('hidden'));
 
-                toMove.forEach(([mIdx, tIdx]) => {
-                    const tx = sBudget[mIdx].transactions[tIdx];
-                    sBudget[mIdx].transactions.splice(tIdx, 1);
-                    sBudget[mIdx].totalSpent -= cleanAmount(tx.amount);
-                    sBudget[mIdx].remainingBudget += cleanAmount(tx.amount);
+  safeListen('confirmDeleteBtn', 'click', async () => {
+    const id = getEl('deleteSelect').value;
+    if (!id) return alert("Please select a client.");
+    if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
 
-                    const txDate = new Date(tx.date);
-                    let dMIdx = dBudget.findIndex(b => { const d = new Date(b.monthLabel); return d.getMonth() === txDate.getMonth() && d.getFullYear() === txDate.getFullYear(); });
-                    if(dMIdx === -1) { dBudget.push({ monthLabel: `${txDate.getMonth()+1}/1/${txDate.getFullYear()}`, monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] }); dMIdx = dBudget.length - 1; }
-                    if(!dBudget[dMIdx].transactions) dBudget[dMIdx].transactions = [];
-                    dBudget[dMIdx].transactions.push(tx);
-                    dBudget[dMIdx].totalSpent += cleanAmount(tx.amount);
-                    dBudget[dMIdx].remainingBudget = cleanAmount(dBudget[dMIdx].monthlyLimit) - dBudget[dMIdx].totalSpent;
-                });
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id));
+      getEl('deleteModal').classList.add('hidden');
+      if (state.activeAccount && state.activeAccount.id === id) window.resetToOverview();
+      alert("Client deleted successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting client.");
+    }
+  });
 
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId), { budgetData: sBudget });
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: dBudget });
-                getEl('mergeModal').classList.add('hidden'); alert("Transactions Moved Successfully.");
-            } catch(e) { console.error(e); alert("Move Failed."); }
-        });
+  // --- SETTINGS ---
+  safeListen('adminManageBtn', 'click', () => {
+    if (!state.activeAccount) return;
+    const b = getCurrentBudget(state.activeAccount.budgetData);
+    getEl('settingActiveMonth').textContent = b ? b.monthLabel : 'None';
+    getEl('settingNewLimit').value = b ? cleanAmount(b.monthlyLimit) : 600;
+    getEl('settingsModal').classList.remove('hidden');
+  });
 
-        safeListen('confirmMergeBtn', 'click', async () => { const sId = getEl('mergeSource').value; const dId = getEl('mergeDest').value; if(!sId || !dId || sId === dId) return alert("Invalid Selection"); if(!confirm("DELETE source account?")) return; try { const sourceAcc = state.accounts.find(a => a.id === sId); const destAcc = state.accounts.find(a => a.id === dId); let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || [])); if (sourceAcc.budgetData) { sourceAcc.budgetData.forEach(sMonth => { const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel); if (existingIdx !== -1) { const destMonth = newBudget[existingIdx]; const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])]; const newSpent = calculateRealSpent(combinedTx); newBudget[existingIdx].transactions = combinedTx; newBudget[existingIdx].totalSpent = newSpent; newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent; } else newBudget.push(sMonth); }); } newBudget.sort((a,b) => new Date(a.monthLabel) - new Date(b.monthLabel)); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget }); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId)); getEl('mergeModal').classList.add('hidden'); alert("Merged"); } catch (err) { alert("Merge failed"); } });
-        
-        safeListen('openDeleteBtn', 'click', () => { 
-            const opts = state.accounts.sort((a,b) => (a.clientName||'').localeCompare(b.clientName||'')).map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`).join(''); 
-            getEl('deleteSelect').innerHTML = '<option value="">Select Client...</option>' + opts; 
-            getEl('deleteModal').classList.remove('hidden'); 
-        });
-        safeListen('closeDeleteBtn', 'click', () => getEl('deleteModal').classList.add('hidden'));
-        safeListen('confirmDeleteBtn', 'click', async () => {
-            const id = getEl('deleteSelect').value;
-            if (!id) return alert("Please select a client.");
-            if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id));
-                getEl('deleteModal').classList.add('hidden');
-                if (state.activeAccount && state.activeAccount.id === id) window.resetToOverview();
-                alert("Client deleted successfully.");
-            } catch (err) { console.error(err); alert("Error deleting client."); }
-        });
+  safeListen('closeSettingsBtn', 'click', () => getEl('settingsModal').classList.add('hidden'));
 
-        safeListen('adminManageBtn', 'click', () => { if(!state.activeAccount) return; const b = getCurrentBudget(state.activeAccount.budgetData); getEl('settingActiveMonth').textContent = b ? b.monthLabel : 'None'; getEl('settingNewLimit').value = b ? cleanAmount(b.monthlyLimit) : 600; getEl('settingsModal').classList.remove('hidden'); });
-        safeListen('closeSettingsBtn', 'click', () => getEl('settingsModal').classList.add('hidden'));
-        safeListen('saveLimitBtn', 'click', async () => { if(!state.activeAccount) return; const newLim = parseFloat(getEl('settingNewLimit').value); try { const upBudget = [...state.activeAccount.budgetData]; const idx = upBudget.findIndex(b => b.monthLabel === getEl('settingActiveMonth').textContent); if(idx !== -1) { upBudget[idx].monthlyLimit = newLim; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget }); getEl('settingsModal').classList.add('hidden'); } } catch(e){} });
-        safeListen('addMonthBtn', 'click', async () => { if(!state.activeAccount) return; const dateVal = getEl('settingNewMonthPicker').value; if(!dateVal) return; const [yr, mo] = dateVal.split('-'); const newLabel = `${parseInt(mo)}/1/${yr}`; const upBudget = [...state.activeAccount.budgetData]; upBudget.push({ monthLabel: newLabel, monthlyLimit: parseFloat(getEl('settingNewMonthLimit').value), totalSpent: 0, remainingBudget: parseFloat(getEl('settingNewMonthLimit').value), transactions: [] }); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget }); getEl('settingsModal').classList.add('hidden'); });
+  safeListen('saveLimitBtn', 'click', async () => {
+    if (!state.activeAccount) return;
+    const newLim = parseFloat(getEl('settingNewLimit').value);
+    try {
+      const upBudget = [...state.activeAccount.budgetData];
+      const idx = upBudget.findIndex(b => b.monthLabel === getEl('settingActiveMonth').textContent);
+      if (idx !== -1) {
+        upBudget[idx].monthlyLimit = newLim;
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+        getEl('settingsModal').classList.add('hidden');
+      }
+    } catch (e) {}
+  });
 
-        safeListen('addTxBtn', 'click', () => { getEl('modalDate').valueAsDate = new Date(); getEl('modalDesc').value=""; getEl('modalAmount').value=""; getEl('txModal').classList.remove('hidden'); });
-        safeListen('closeModalBtn', 'click', () => { getEl('txModal').classList.add('hidden'); });
-        safeListen('saveTxBtn', 'click', async () => { if(!state.activeAccount) return; const amt=parseFloat(getEl('modalAmount').value), desc=getEl('modalDesc').value, date=getEl('modalDate').value; if(isNaN(amt)||!date) return alert("Invalid inputs"); try { const txDate=new Date(date); const bIdx=state.activeAccount.budgetData.findIndex(b=>{const bDate=new Date(b.monthLabel); return bDate.getMonth()===txDate.getMonth() && bDate.getFullYear()===txDate.getFullYear();}); if(bIdx===-1) return alert("No budget found"); const newTx={date, description:desc||'Manual', amount:amt, id:Date.now().toString()}; const upBudget=[...state.activeAccount.budgetData]; upBudget[bIdx].transactions=[...(upBudget[bIdx].transactions||[]),newTx]; upBudget[bIdx].totalSpent=(upBudget[bIdx].totalSpent||0)+amt; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget }); getEl('txModal').classList.add('hidden'); } catch(e){ alert("Error saving"); } });
+  safeListen('addMonthBtn', 'click', async () => {
+    if (!state.activeAccount) return;
+    const dateVal = getEl('settingNewMonthPicker').value;
+    if (!dateVal) return;
+    const [yr, mo] = dateVal.split('-');
+    const newLabel = `${parseInt(mo)}/1/${yr}`;
+    const upBudget = [...state.activeAccount.budgetData];
+    upBudget.push({ monthLabel: newLabel, monthlyLimit: parseFloat(getEl('settingNewMonthLimit').value), totalSpent: 0, remainingBudget: parseFloat(getEl('settingNewMonthLimit').value), transactions: [] });
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+    getEl('settingsModal').classList.add('hidden');
+  });
 
-        document.getElementById('real-time-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); initAuth();
-    </script>
+  // --- ADD TX ---
+  safeListen('addTxBtn', 'click', () => {
+    getEl('modalDate').valueAsDate = new Date();
+    getEl('modalDesc').value = "";
+    getEl('modalAmount').value = "";
+    getEl('txModal').classList.remove('hidden');
+  });
+
+  safeListen('closeModalBtn', 'click', () => { getEl('txModal').classList.add('hidden'); });
+
+  safeListen('saveTxBtn', 'click', async () => {
+    if (!state.activeAccount) return;
+    const amt = parseFloat(getEl('modalAmount').value),
+          desc = getEl('modalDesc').value,
+          date = getEl('modalDate').value;
+
+    if (isNaN(amt) || !date) return alert("Invalid inputs");
+
+    try {
+      const txDate = new Date(date);
+      const bIdx = state.activeAccount.budgetData.findIndex(b => {
+        const bDate = new Date(b.monthLabel);
+        return bDate.getMonth() === txDate.getMonth() && bDate.getFullYear() === txDate.getFullYear();
+      });
+      if (bIdx === -1) return alert("No budget found");
+
+      const newTx = { date, description: desc || 'Manual', amount: amt, id: Date.now().toString() };
+      const upBudget = [...state.activeAccount.budgetData];
+      upBudget[bIdx].transactions = [...(upBudget[bIdx].transactions || []), newTx];
+      upBudget[bIdx].totalSpent = (upBudget[bIdx].totalSpent || 0) + amt;
+
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+      getEl('txModal').classList.add('hidden');
+    } catch (e) {
+      alert("Error saving");
+    }
+  });
+
+  document.getElementById('real-time-date').textContent =
+    new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+  initAuth();
+</script>
+
 </body>
 </html>
