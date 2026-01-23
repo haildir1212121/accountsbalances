@@ -123,7 +123,15 @@
                 </div>
 
                 <div id="client-dashboard-view" class="hidden space-y-6 max-w-7xl mx-auto">
-                    <div class="flex justify-end mb-2"><button id="admin-manage-btn" class="hidden text-xs bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-800 flex items-center space-x-1"><i class="ph-bold ph-gear"></i><span>Manage Budget</span></button></div>
+                    <div class="flex justify-end mb-2 space-x-2">
+  <button id="admin-edit-client-btn" class="hidden text-xs bg-white text-black border border-black px-3 py-1.5 rounded-md hover:bg-gray-50 flex items-center space-x-1">
+    <i class="ph-bold ph-pencil-simple"></i><span>Edit Client</span>
+  </button>
+
+  <button id="admin-manage-btn" class="hidden text-xs bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-800 flex items-center space-x-1">
+    <i class="ph-bold ph-gear"></i><span>Manage Budget</span>
+  </button>
+</div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Limit</dt><dd id="c-card-limit" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
                         <div class="bg-white rounded-lg border border-gray-200 p-5"><dl><dt class="text-xs font-bold text-gray-400 uppercase">Spent</dt><dd id="c-card-spent" class="text-2xl font-bold text-black mt-1">$0.00</dd></dl></div>
@@ -149,7 +157,77 @@
     <div id="settings-modal" class="fixed inset-0 z-[70] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-lg border border-black p-6"><h3 class="text-lg font-bold text-black mb-4">Budget Settings</h3><div class="space-y-6"><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Edit Limit</h4><div class="flex space-x-2"><div id="setting-active-month" class="bg-gray-100 p-2 rounded text-sm font-mono font-bold"></div><input type="number" id="setting-new-limit" class="block w-full rounded-md border-gray-300 p-2 text-sm" placeholder="New Limit"></div><button id="save-limit-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Update</button></div><div class="border-t border-gray-100 pt-4"><h4 class="text-sm font-bold mb-2">Add Month</h4><div class="flex space-x-2"><input type="month" id="setting-new-month-picker" class="block w-full rounded-md border-gray-300 p-2 text-sm"><input type="number" id="setting-new-month-limit" class="w-24 rounded-md border-gray-300 p-2 text-sm" value="600"></div><button id="add-month-btn" class="mt-2 w-full bg-black text-white py-2 rounded-md text-xs font-bold">Add Month</button></div></div><div class="mt-6 flex justify-end"><button id="close-settings-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Close</button></div></div></div></div>
     <div id="merge-modal" class="fixed inset-0 z-[80] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-2xl rounded-lg border border-black p-6 h-[80vh] flex flex-col"><h3 class="text-lg font-bold text-black mb-1">Data Tools</h3><p class="text-xs text-gray-500 mb-4">Merge duplicate accounts OR move specific transactions.</p><div class="flex-shrink-0 grid grid-cols-2 gap-4 mb-4"><div><label class="text-xs font-bold uppercase text-red-600">From (Source)</label><select id="merge-source-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div><div><label class="text-xs font-bold uppercase text-green-600">To (Destination)</label><select id="merge-dest-select" class="block w-full rounded-md border-gray-300 p-2 text-sm mt-1"></select></div></div><div class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50 mb-4 custom-scroll"><div id="transaction-list-header" class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 hidden">Select Transactions to Move:</div><div id="transaction-list-container" class="space-y-1"><div class="text-center text-xs text-gray-400 mt-10">Select a Source Account to view transactions.</div></div></div><div class="flex-shrink-0 mt-2 flex justify-between items-center pt-4 border-t border-gray-100"><button id="close-merge-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold">Cancel</button><div class="flex space-x-2"><button id="move-tx-btn" class="px-4 py-2 bg-white border border-black text-black rounded-md text-sm font-bold hover:bg-gray-50 hidden">Move Selected</button><button id="confirm-merge-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">Merge & Delete Source</button></div></div></div></div></div>
     <div id="delete-modal" class="fixed inset-0 z-[90] hidden"><div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div><div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-lg border border-red-600 p-6 shadow-xl"><div class="flex items-center space-x-3 mb-4 text-red-600"><i class="ph-fill ph-warning-circle text-3xl"></i><h3 class="text-lg font-bold text-black">Delete Client Account</h3></div><p class="text-sm text-gray-600 mb-4">This action is <span class="font-bold">irreversible</span>. All transaction history and budget data for this client will be wiped from the database.</p><div class="space-y-2"><label class="text-xs font-bold uppercase text-gray-500">Select Client to Delete</label><select id="delete-client-select" class="block w-full rounded-md border-gray-300 p-2 text-sm focus:border-red-500 focus:ring-red-500"></select></div><div class="mt-6 flex justify-end space-x-2"><button id="close-delete-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-bold text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 shadow-sm">Delete Forever</button></div></div></div></div>
-    
+    <div id="edit-client-modal" class="fixed inset-0 z-[75] hidden">
+  <div class="fixed inset-0 bg-black/20 backdrop-blur-sm"></div>
+  <div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-3xl rounded-lg border border-black p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-black">Edit Client</h3>
+          <p class="text-xs text-gray-500 mt-1">Update client details and modify transaction history.</p>
+        </div>
+        <button id="close-edit-client-btn" class="text-gray-500 hover:text-black">
+          <i class="ph-bold ph-x text-xl"></i>
+        </button>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Client Name</label>
+          <input id="edit-client-name" type="text" class="w-full rounded-md border-gray-300 border p-2 text-sm focus:ring-0 focus:border-black">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Organization</label>
+          <input id="edit-client-org" type="text" class="w-full rounded-md border-gray-300 border p-2 text-sm focus:ring-0 focus:border-black">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Account ID</label>
+          <input id="edit-client-account" type="number" class="w-full rounded-md border-gray-300 border p-2 text-sm focus:ring-0 focus:border-black">
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end space-x-2">
+        <button id="save-client-info-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">
+          Save Client Info
+        </button>
+      </div>
+
+      <div class="mt-6 border-t border-gray-100 pt-6">
+        <div class="flex items-end justify-between gap-3">
+          <div class="flex-1">
+            <h4 class="text-sm font-bold text-black">Edit Transaction History</h4>
+            <p class="text-xs text-gray-500 mt-1">Edit or delete transactions in the selected month.</p>
+          </div>
+
+          <div class="w-56">
+            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Month</label>
+            <select id="edit-history-month" class="w-full rounded-md border-gray-300 border p-2 text-sm focus:ring-0 focus:border-black"></select>
+          </div>
+        </div>
+
+        <div class="mt-4 overflow-x-auto border border-gray-200 rounded-lg">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Date</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Description</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Amount</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="edit-history-tbody" class="bg-white divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <button id="save-history-btn" class="px-4 py-2 bg-black text-white rounded-md text-sm font-bold hover:bg-gray-800">
+            Save History Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     <div id="import-log-modal" class="fixed inset-0 z-[100] hidden">
         <div class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto flex items-center justify-center p-4">
@@ -213,80 +291,91 @@
   };
 
   const els = {
-    col1List: 'col-1-list',
-    col2List: 'col-2-list',
-    col2Title: 'col-2-title',
-    clientCount: 'client-count',
-    adminView: 'admin-dashboard-view',
-    clientView: 'client-dashboard-view',
-    emptyState: 'empty-state',
-    adminTools: 'admin-tools',
-    sidebarPrimary: 'sidebar-primary',
-    sidebarSecondary: 'sidebar-secondary',
-    clientLogoutBtn: 'client-logout-btn',
-    tickerCurrentPrice: 'ticker-current-price',
-    tickerChange: 'ticker-change',
-    tickerOpen: 'ticker-open',
-    tickerCap: 'ticker-cap',
-    tickerHigh: 'ticker-high',
-    tickerLow: 'ticker-low',
-    tickerRatio: 'ticker-ratio',
-    tickerDividend: 'ticker-dividend',
-    tickerTitle: 'ticker-title',
-    accountCardsContainer: 'account-cards-container',
-    recentActivityList: 'recent-activity-list',
-    dynamicChartsArea: 'dynamic-charts-area',
-    heatmapContainer: 'heatmap-container',
-    headerTitle: 'header-title',
-    headerSubtitle: 'header-subtitle',
-    txModal: 'tx-modal',
-    addTxBtn: 'add-tx-btn',
-    saveTxBtn: 'save-tx-btn',
-    closeModalBtn: 'close-modal-btn',
-    modalDate: 'modal-date',
-    modalDesc: 'modal-desc',
-    modalAmount: 'modal-amount',
-    settingsModal: 'settings-modal',
-    adminManageBtn: 'admin-manage-btn',
-    closeSettingsBtn: 'close-settings-btn',
-    settingActiveMonth: 'setting-active-month',
-    settingNewLimit: 'setting-new-limit',
-    saveLimitBtn: 'save-limit-btn',
-    settingNewMonthPicker: 'setting-new-month-picker',
-    settingNewMonthLimit: 'setting-new-month-limit',
-    addMonthBtn: 'add-month-btn',
-    mergeModal: 'merge-modal',
-    openMergeBtn: 'open-merge-btn',
-    closeMergeBtn: 'close-merge-btn',
-    confirmMergeBtn: 'confirm-merge-btn',
-    mergeSource: 'merge-source-select',
-    mergeDest: 'merge-dest-select',
-    moveTxBtn: 'move-tx-btn',
-    txListContainer: 'transaction-list-container',
-    txListHeader: 'transaction-list-header',
-    deleteModal: 'delete-modal',
-    openDeleteBtn: 'open-delete-btn',
-    closeDeleteBtn: 'close-delete-btn',
-    confirmDeleteBtn: 'confirm-delete-btn',
-    deleteSelect: 'delete-client-select',
-    importLogModal: 'import-log-modal',
-    importLogContent: 'import-log-content',
-    closeImportLogBtn: 'close-import-log-btn',
-    importDoneBtn: 'import-done-btn',
-    uploadBtn: 'upload-btn',
-    uploadInput: 'json-upload',
-    exportBtn: 'export-btn',
-    searchInput: 'search-input',
-    cCardLimit: 'c-card-limit',
-    cCardSpent: 'c-card-spent',
-    cCardRemaining: 'c-card-remaining',
-    cProgressBar: 'c-progress-bar',
-    cUtilizationText: 'c-utilization-text',
-    cTxBody: 'c-tx-body',
-    cTxCount: 'c-tx-count',
-    clientMonthSelector: 'client-month-selector'
-  };
+  col1List: 'col-1-list',
+  col2List: 'col-2-list',
+  col2Title: 'col-2-title',
+  clientCount: 'client-count',
+  adminView: 'admin-dashboard-view',
+  clientView: 'client-dashboard-view',
+  emptyState: 'empty-state',
+  adminTools: 'admin-tools',
+  sidebarPrimary: 'sidebar-primary',
+  sidebarSecondary: 'sidebar-secondary',
+  clientLogoutBtn: 'client-logout-btn',
+  tickerCurrentPrice: 'ticker-current-price',
+  tickerChange: 'ticker-change',
+  tickerOpen: 'ticker-open',
+  tickerCap: 'ticker-cap',
+  tickerHigh: 'ticker-high',
+  tickerLow: 'ticker-low',
+  tickerRatio: 'ticker-ratio',
+  tickerDividend: 'ticker-dividend',
+  tickerTitle: 'ticker-title',
+  accountCardsContainer: 'account-cards-container',
+  recentActivityList: 'recent-activity-list',
+  dynamicChartsArea: 'dynamic-charts-area',
+  heatmapContainer: 'heatmap-container',
+  headerTitle: 'header-title',
+  headerSubtitle: 'header-subtitle',
+  txModal: 'tx-modal',
+  addTxBtn: 'add-tx-btn',
+  saveTxBtn: 'save-tx-btn',
+  closeModalBtn: 'close-modal-btn',
+  modalDate: 'modal-date',
+  modalDesc: 'modal-desc',
+  modalAmount: 'modal-amount',
+  settingsModal: 'settings-modal',
+  adminManageBtn: 'admin-manage-btn',
+  closeSettingsBtn: 'close-settings-btn',
+  settingActiveMonth: 'setting-active-month',
+  settingNewLimit: 'setting-new-limit',
+  saveLimitBtn: 'save-limit-btn',
+  settingNewMonthPicker: 'setting-new-month-picker',
+  settingNewMonthLimit: 'setting-new-month-limit',
+  addMonthBtn: 'add-month-btn',
+  mergeModal: 'merge-modal',
+  openMergeBtn: 'open-merge-btn',
+  closeMergeBtn: 'close-merge-btn',
+  confirmMergeBtn: 'confirm-merge-btn',
+  mergeSource: 'merge-source-select',
+  mergeDest: 'merge-dest-select',
+  moveTxBtn: 'move-tx-btn',
+  txListContainer: 'transaction-list-container',
+  txListHeader: 'transaction-list-header',
+  deleteModal: 'delete-modal',
+  openDeleteBtn: 'open-delete-btn',
+  closeDeleteBtn: 'close-delete-btn',
+  confirmDeleteBtn: 'confirm-delete-btn',
+  deleteSelect: 'delete-client-select',
+  importLogModal: 'import-log-modal',
+  importLogContent: 'import-log-content',
+  closeImportLogBtn: 'close-import-log-btn',
+  importDoneBtn: 'import-done-btn',
+  uploadBtn: 'upload-btn',
+  uploadInput: 'json-upload',
+  exportBtn: 'export-btn',
+  searchInput: 'search-input',
+  cCardLimit: 'c-card-limit',
+  cCardSpent: 'c-card-spent',
+  cCardRemaining: 'c-card-remaining',
+  cProgressBar: 'c-progress-bar',
+  cUtilizationText: 'c-utilization-text',
+  cTxBody: 'c-tx-body',
+  cTxCount: 'c-tx-count',
+  clientMonthSelector: 'client-month-selector',
 
+  // 👇 NEW KEYS (comma before this line is REQUIRED)
+  editClientModal: 'edit-client-modal',
+  adminEditClientBtn: 'admin-edit-client-btn',
+  closeEditClientBtn: 'close-edit-client-btn',
+  editClientName: 'edit-client-name',
+  editClientOrg: 'edit-client-org',
+  editClientAccount: 'edit-client-account',
+  saveClientInfoBtn: 'save-client-info-btn',
+  editHistoryMonth: 'edit-history-month',
+  editHistoryTbody: 'edit-history-tbody',
+  saveHistoryBtn: 'save-history-btn'
+};
   const getEl = (key) => document.getElementById(els[key]);
   const safeListen = (key, event, handler) => { const el = getEl(key); if (el) el.addEventListener(event, handler); };
 
@@ -314,6 +403,210 @@
 
     return value;
   }
+let historyDraft = {
+  monthLabel: null,
+  transactions: []
+};
+
+function openEditClientModal() {
+  if (!state.activeAccount) return;
+
+  // Fill client info fields
+  getEl('editClientName').value = state.activeAccount.clientName || '';
+  getEl('editClientOrg').value = state.activeAccount.organization || '';
+  getEl('editClientAccount').value = state.activeAccount.accountId || '';
+
+  // Build month selector
+  const bds = Array.isArray(state.activeAccount.budgetData) ? state.activeAccount.budgetData : [];
+  getEl('editHistoryMonth').innerHTML = bds
+    .slice()
+    .sort((a, b) => new Date(b.monthLabel) - new Date(a.monthLabel))
+    .map(b => `<option value="${b.monthLabel}">${b.monthLabel}</option>`)
+    .join('');
+
+  // Default month = currently selected month on client view, else current budget
+  const current = state.selectedMonthLabel || (getCurrentBudget(bds)?.monthLabel || (bds[0]?.monthLabel || null));
+  if (current) getEl('editHistoryMonth').value = current;
+
+  // Load table for selected month
+  loadHistoryForMonth(getEl('editHistoryMonth').value);
+
+  getEl('editClientModal').classList.remove('hidden');
+}
+
+function closeEditClientModal() {
+  getEl('editClientModal').classList.add('hidden');
+  historyDraft = { monthLabel: null, transactions: [] };
+}
+
+function loadHistoryForMonth(monthLabel) {
+  if (!state.activeAccount) return;
+
+  const bds = state.activeAccount.budgetData || [];
+  const budget = bds.find(b => b.monthLabel === monthLabel);
+  historyDraft.monthLabel = monthLabel;
+  historyDraft.transactions = getCleanTransactions(budget?.transactions || []).map(tx => ({
+    id: tx.id || String(Date.now()) + Math.random().toString(16).slice(2),
+    date: tx.date || '',
+    description: tx.description || '',
+    amount: cleanAmount(tx.amount)
+  }));
+
+  renderHistoryTable();
+}
+
+function renderHistoryTable() {
+  const rows = historyDraft.transactions
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map((tx, idx) => `
+      <tr>
+        <td class="px-4 py-3">
+          <input type="date" class="hist-date w-full rounded-md border-gray-300 border p-2 text-sm"
+                 data-idx="${idx}" value="${tx.date}">
+        </td>
+        <td class="px-4 py-3">
+          <input type="text" class="hist-desc w-full rounded-md border-gray-300 border p-2 text-sm"
+                 data-idx="${idx}" value="${escapeHtml(tx.description || '')}">
+        </td>
+        <td class="px-4 py-3 text-right">
+          <input type="number" step="0.01" class="hist-amt w-32 text-right rounded-md border-gray-300 border p-2 text-sm"
+                 data-idx="${idx}" value="${Number(tx.amount || 0).toFixed(2)}">
+        </td>
+        <td class="px-4 py-3 text-right">
+          <button class="hist-del px-3 py-2 text-xs font-bold border border-red-200 bg-red-50 text-red-600 rounded-md hover:bg-red-100"
+                  data-idx="${idx}">
+            Delete
+          </button>
+        </td>
+      </tr>
+    `)
+    .join('');
+
+  getEl('editHistoryTbody').innerHTML = rows || `
+    <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400 italic">No transactions for this month.</td></tr>
+  `;
+
+  // Bind delete buttons
+  document.querySelectorAll('.hist-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+      historyDraft.transactions.splice(idx, 1);
+      renderHistoryTable();
+    });
+  });
+
+  // Bind input changes
+  document.querySelectorAll('.hist-date').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      historyDraft.transactions[idx].date = e.target.value;
+    });
+  });
+
+  document.querySelectorAll('.hist-desc').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      historyDraft.transactions[idx].description = e.target.value;
+    });
+  });
+
+  document.querySelectorAll('.hist-amt').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      historyDraft.transactions[idx].amount = cleanAmount(e.target.value);
+    });
+  });
+}
+
+// Small helper to avoid breaking table with quotes
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function saveClientInfo() {
+  if (!state.activeAccount) return;
+
+  const newName = getEl('editClientName').value.trim();
+  const newOrg = getEl('editClientOrg').value.trim();
+  const newAccountId = cleanAmount(getEl('editClientAccount').value);
+
+  if (!newName) return alert("Client name cannot be empty.");
+
+  try {
+    await updateDoc(
+      doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id),
+      {
+        clientName: newName,
+        organization: newOrg || 'Imported',
+        accountId: newAccountId
+      }
+    );
+
+    alert("Client info updated.");
+  } catch (e) {
+    console.error(e);
+    alert("Failed to update client info.");
+  }
+}
+
+async function saveHistoryChanges() {
+  if (!state.activeAccount) return;
+  if (!historyDraft.monthLabel) return;
+
+  // Validate drafts
+  for (const tx of historyDraft.transactions) {
+    if (!tx.date) return alert("All transactions must have a date.");
+    if (tx.amount === null || Number.isNaN(tx.amount)) return alert("All transactions must have a valid amount.");
+  }
+
+  try {
+    const upBudget = JSON.parse(JSON.stringify(state.activeAccount.budgetData || []));
+    const idx = upBudget.findIndex(b => b.monthLabel === historyDraft.monthLabel);
+    if (idx === -1) return alert("Month not found.");
+
+    // Rebuild transactions list (no "Monthly Limit" fake row)
+    const rebuiltTx = historyDraft.transactions.map(tx => ({
+      id: tx.id,
+      date: tx.date,
+      description: tx.description || '',
+      amount: cleanAmount(tx.amount)
+    }));
+
+    const spent = calculateRealSpent(rebuiltTx);
+    const lim = cleanAmount(upBudget[idx].monthlyLimit);
+
+    upBudget[idx].transactions = rebuiltTx;
+    upBudget[idx].totalSpent = spent;
+    upBudget[idx].remainingBudget = lim - spent;
+
+    await updateDoc(
+      doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id),
+      { budgetData: upBudget }
+    );
+
+    alert("History updated.");
+
+    // Keep local UI in sync immediately
+    state.activeAccount.budgetData = upBudget;
+    renderClientDashboard();
+    if (state.currentUser?.role === 'admin') renderAdminDashboard();
+  } catch (e) {
+    console.error(e);
+    alert("Failed to save history.");
+  }
+}
+
+// Bindings
+safeListen('adminEditClientBtn', 'click', openEditClientModal);
+safeListen('closeEditClientBtn', 'click', closeEditClientModal);
+safeListen('saveClientInfoBtn', 'click', saveClientInfo);
+safeListen('editHistoryMonth', 'change', (e) => loadHistoryForMonth(e.target.value));
+safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   function normalizeNameKey(name) {
     return String(name || "")
@@ -351,9 +644,10 @@
       if (state.currentUser) {
         if (state.currentUser.role === 'admin') {
           renderSidebar();
-          if (state.activeAccount) renderClientDashboard(); else renderAdminDashboard();
+          if (state.activeAccount) renderClientDashboard(); else  renderAdminDashboard();
         } else if (state.currentUser.role === 'client') {
           const fresh = state.accounts.find(a => a.id === state.currentUser.id);
+	getEl('adminEditClientBtn').classList.add('hidden');
           if (fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; updateUI(); }
         }
       }
@@ -687,18 +981,27 @@
   function getInitials(name) { return (name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(); }
 
   window.loadClientView = (id, mLabel = null) => {
-    const acc = state.accounts.find(a => a.id === id);
-    if (!acc) return;
-    state.activeAccount = acc;
-    state.selectedMonthLabel = mLabel;
-    getEl('adminView').classList.add('hidden');
-    getEl('emptyState').classList.add('hidden');
-    getEl('clientView').classList.remove('hidden');
-    if (state.currentUser && state.currentUser.role === 'admin') getEl('adminManageBtn').classList.remove('hidden');
-    else getEl('adminManageBtn').classList.add('hidden');
-    renderClientDashboard();
-    renderSidebar();
-  };
+  const acc = state.accounts.find(a => a.id === id);
+  if (!acc) return;
+
+  state.activeAccount = acc;
+  state.selectedMonthLabel = mLabel;
+
+  getEl('adminView').classList.add('hidden');
+  getEl('emptyState').classList.add('hidden');
+  getEl('clientView').classList.remove('hidden');
+
+  if (state.currentUser && state.currentUser.role === 'admin') {
+    getEl('adminManageBtn').classList.remove('hidden');
+    getEl('adminEditClientBtn').classList.remove('hidden');
+  } else {
+    getEl('adminManageBtn').classList.add('hidden');
+    getEl('adminEditClientBtn').classList.add('hidden');
+  }
+
+  renderClientDashboard();
+  renderSidebar();
+};
 
   // --- BUTTON BINDINGS ---
   document.getElementById('login-form').addEventListener('submit', async (e) => {
