@@ -59,6 +59,7 @@
                     <button type="submit" id="login-btn" class="w-full bg-black hover:bg-gray-800 text-white font-medium py-2.5 rounded-md transition-colors flex justify-center items-center"><span>Sign In</span></button>
                 </form>
                 <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                    <p class="text-[10px] text-gray-400 mb-1">Dispatch viewers: use your dispatch credentials</p>
                     <div id="system-status" class="mt-2 text-[10px] font-medium text-gray-500 flex items-center justify-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse"></div><span>Connecting...</span></div>
                 </div>
                 <div id="login-error" class="hidden mt-4 p-3 bg-gray-50 text-black text-xs rounded border border-black text-center font-medium"></div>
@@ -71,7 +72,7 @@
             </button>
             <div id="admin-tools" class="p-4 border-b border-gray-200 hidden md:block">
                 <div class="relative mb-3"><i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i><input type="text" id="search-input" placeholder="Search accounts..." class="w-full bg-gray-50 border border-gray-300 text-black text-xs rounded-md pl-10 p-2 focus:border-black focus:ring-0"></div>
-                <div class="grid grid-cols-4 gap-2">
+                <div id="admin-action-buttons" class="grid grid-cols-4 gap-2">
                     <button id="upload-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Upload JSON"><i class="ph ph-upload-simple text-lg"></i></button>
                     <button id="export-btn" class="flex items-center justify-center bg-white border border-blue-300 hover:bg-blue-50 text-blue-600 px-2 py-2 rounded-md text-xs font-bold" title="Export Database"><i class="ph ph-download-simple text-lg"></i></button>
                     <button id="open-merge-btn" class="flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-black px-2 py-2 rounded-md text-xs font-bold" title="Merge / Move"><i class="ph ph-arrows-merge text-lg"></i></button>
@@ -95,6 +96,10 @@
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-white relative z-10">
             <div id="main-scroll" class="flex-1 overflow-y-auto p-4 sm:p-8">
                 
+                <div id="viewer-readonly-banner" class="hidden bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md mb-4 flex items-center space-x-2 text-sm font-medium">
+                    <i class="ph ph-eye text-lg"></i><span>View-Only Mode — You are logged in as Dispatch Viewer. Editing is disabled.</span>
+                </div>
+
                 <header class="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
                     <div><h1 id="header-title" class="text-2xl font-bold text-black tracking-tight">Overview</h1><p id="header-subtitle" class="text-sm text-gray-500 mt-1">Financial Snapshot</p></div>
                     <div class="flex items-center space-x-4">
@@ -374,7 +379,9 @@
   saveClientInfoBtn: 'save-client-info-btn',
   editHistoryMonth: 'edit-history-month',
   editHistoryTbody: 'edit-history-tbody',
-  saveHistoryBtn: 'save-history-btn'
+  saveHistoryBtn: 'save-history-btn',
+  adminActionButtons: 'admin-action-buttons',
+  viewerBanner: 'viewer-readonly-banner'
 };
   const getEl = (key) => document.getElementById(els[key]);
   const safeListen = (key, event, handler) => { const el = getEl(key); if (el) el.addEventListener(event, handler); };
@@ -409,6 +416,7 @@ let historyDraft = {
 };
 
 function openEditClientModal() {
+  if (!requireAdmin()) return;
   if (!state.activeAccount) return;
 
   // Fill client info fields
@@ -529,6 +537,7 @@ function escapeHtml(str) {
 }
 
 async function saveClientInfo() {
+  if (!requireAdmin()) return;
   if (!state.activeAccount) return;
 
   const newName = getEl('editClientName').value.trim();
@@ -555,6 +564,7 @@ async function saveClientInfo() {
 }
 
 async function saveHistoryChanges() {
+  if (!requireAdmin()) return;
   if (!state.activeAccount) return;
   if (!historyDraft.monthLabel) return;
 
@@ -642,7 +652,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
       document.getElementById('login-btn').innerHTML = 'Sign In';
 
       if (state.currentUser) {
-        if (state.currentUser.role === 'admin') {
+        if (state.currentUser.role === 'admin' || state.currentUser.role === 'viewer') {
           renderSidebar();
           if (state.activeAccount) renderClientDashboard(); else  renderAdminDashboard();
         } else if (state.currentUser.role === 'client') {
@@ -941,7 +951,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     renderSidebar();
     const root = document.querySelector('[x-data]');
     if (root && root.__x) root.__x.$data.openSecondColumn();
-    if (state.currentUser.role === 'admin') {
+    if (state.currentUser.role === 'admin' || state.currentUser.role === 'viewer') {
       state.activeAccount = null;
       getEl('clientView').classList.add('hidden');
       getEl('adminView').classList.remove('hidden');
@@ -980,6 +990,18 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   const formatCurrency = (amt) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amt);
   function getInitials(name) { return (name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(); }
 
+  // --- ROLE HELPERS ---
+  function isAdmin() { return state.currentUser && state.currentUser.role === 'admin'; }
+  function isViewer() { return state.currentUser && state.currentUser.role === 'viewer'; }
+  function isAdminOrViewer() { return state.currentUser && (state.currentUser.role === 'admin' || state.currentUser.role === 'viewer'); }
+  function requireAdmin(action) {
+    if (!isAdmin()) {
+      alert('Permission denied. This action requires admin access.');
+      return false;
+    }
+    return true;
+  }
+
   window.loadClientView = (id, mLabel = null) => {
   const acc = state.accounts.find(a => a.id === id);
   if (!acc) return;
@@ -994,9 +1016,11 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   if (state.currentUser && state.currentUser.role === 'admin') {
     getEl('adminManageBtn').classList.remove('hidden');
     getEl('adminEditClientBtn').classList.remove('hidden');
+    getEl('addTxBtn').classList.remove('hidden');
   } else {
     getEl('adminManageBtn').classList.add('hidden');
     getEl('adminEditClientBtn').classList.add('hidden');
+    getEl('addTxBtn').classList.add('hidden');
   }
 
   renderClientDashboard();
@@ -1013,6 +1037,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     if (state.loading) return;
 
     if (u === 'admin' && p === 'admin') { state.currentUser = { role: 'admin', name: 'Admin' }; updateUI(); return; }
+    if (u === 'dispatch' && p === 'dispatch') { state.currentUser = { role: 'viewer', name: 'Dispatch Viewer' }; updateUI(); return; }
 
     const match = state.accounts.find(acc => (acc.clientName || '').replace(/\s+/g, '.').toLowerCase() === u);
     if (!match) { document.getElementById('login-error').textContent = "User not found"; document.getElementById('login-error').classList.remove('hidden'); return; }
@@ -1041,6 +1066,16 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
       getEl('sidebarPrimary').classList.remove('hidden');
       getEl('clientLogoutBtn').classList.add('hidden');
       getEl('adminTools').classList.remove('hidden');
+
+      // Viewer: show search but hide admin action buttons and show read-only banner
+      if (state.currentUser.role === 'viewer') {
+        getEl('adminActionButtons').classList.add('hidden');
+        getEl('viewerBanner').classList.remove('hidden');
+      } else {
+        getEl('adminActionButtons').classList.remove('hidden');
+        getEl('viewerBanner').classList.add('hidden');
+      }
+
       renderSidebar();
       if (state.accounts.length > 0) {
         getEl('emptyState').classList.add('hidden');
@@ -1066,10 +1101,11 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     logContent.scrollTop = logContent.scrollHeight;
   };
 
-  safeListen('uploadBtn', 'click', () => getEl('uploadInput').click());
+  safeListen('uploadBtn', 'click', () => { if (!requireAdmin()) return; getEl('uploadInput').click(); });
 
   // -------------------- IMPORT (UPDATED) --------------------
   safeListen('uploadInput', 'change', async (e) => {
+    if (!requireAdmin()) return;
     const file = e.target.files[0];
     if (!file) return;
 
@@ -1155,6 +1191,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   // --- EXPORT ---
   safeListen('exportBtn', 'click', () => {
+    if (!requireAdmin()) return;
     if (!state.accounts || state.accounts.length === 0) { alert("No data to export."); return; }
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.accounts, null, 2));
     const downloadAnchorNode = document.createElement('a');
@@ -1167,6 +1204,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   // --- MERGE TOOL ---
   safeListen('openMergeBtn', 'click', () => {
+    if (!requireAdmin()) return;
     const opts = state.accounts
       .sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''))
       .map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`)
@@ -1214,6 +1252,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   });
 
   safeListen('moveTxBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     const sId = getEl('mergeSource').value;
     const dId = getEl('mergeDest').value;
     if (!sId || !dId || sId === dId) return alert("Select distinct Source and Destination.");
@@ -1268,6 +1307,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   });
 
   safeListen('confirmMergeBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     const sId = getEl('mergeSource').value;
     const dId = getEl('mergeDest').value;
     if (!sId || !dId || sId === dId) return alert("Invalid Selection");
@@ -1309,6 +1349,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   // --- DELETE CLIENT ---
   safeListen('openDeleteBtn', 'click', () => {
+    if (!requireAdmin()) return;
     const opts = state.accounts
       .sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''))
       .map(a => `<option value="${a.id}">${a.clientName} (${a.accountId})</option>`)
@@ -1321,6 +1362,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   safeListen('closeDeleteBtn', 'click', () => getEl('deleteModal').classList.add('hidden'));
 
   safeListen('confirmDeleteBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     const id = getEl('deleteSelect').value;
     if (!id) return alert("Please select a client.");
     if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
@@ -1338,6 +1380,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   // --- SETTINGS ---
   safeListen('adminManageBtn', 'click', () => {
+    if (!requireAdmin()) return;
     if (!state.activeAccount) return;
     const b = getCurrentBudget(state.activeAccount.budgetData);
     getEl('settingActiveMonth').textContent = b ? b.monthLabel : 'None';
@@ -1348,6 +1391,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   safeListen('closeSettingsBtn', 'click', () => getEl('settingsModal').classList.add('hidden'));
 
   safeListen('saveLimitBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     if (!state.activeAccount) return;
     const newLim = parseFloat(getEl('settingNewLimit').value);
     try {
@@ -1362,6 +1406,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   });
 
   safeListen('addMonthBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     if (!state.activeAccount) return;
     const dateVal = getEl('settingNewMonthPicker').value;
     if (!dateVal) return;
@@ -1375,6 +1420,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
   // --- ADD TX ---
   safeListen('addTxBtn', 'click', () => {
+    if (!requireAdmin()) return;
     getEl('modalDate').valueAsDate = new Date();
     getEl('modalDesc').value = "";
     getEl('modalAmount').value = "";
@@ -1384,6 +1430,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   safeListen('closeModalBtn', 'click', () => { getEl('txModal').classList.add('hidden'); });
 
   safeListen('saveTxBtn', 'click', async () => {
+    if (!requireAdmin()) return;
     if (!state.activeAccount) return;
     const amt = parseFloat(getEl('modalAmount').value),
           desc = getEl('modalDesc').value,
