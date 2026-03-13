@@ -3,6 +3,7 @@ set -euo pipefail
 
 # ─── iCabbi Webhook Server — Azure Deploy Script ───
 # Automates: resource group, App Service, env vars, code deploy
+# No Firebase service account needed — uses client SDK with anonymous auth
 
 echo "=== iCabbi Webhook Server — Azure Deployment ==="
 echo ""
@@ -14,12 +15,6 @@ RESOURCE_GROUP="${RESOURCE_GROUP:-accountsbalances-rg}"
 read -rp "Azure region [eastus]: " LOCATION
 LOCATION="${LOCATION:-eastus}"
 read -rp "Webhook secret (shared with iCabbi): " WEBHOOK_SECRET
-read -rp "Path to Firebase service account JSON: " SA_PATH
-
-if [ ! -f "$SA_PATH" ]; then
-  echo "ERROR: Firebase service account file not found at: $SA_PATH"
-  exit 1
-fi
 
 PLAN_NAME="${APP_NAME}-plan"
 
@@ -43,10 +38,10 @@ if ! command -v az &> /dev/null; then
 fi
 
 echo ""
-echo "[1/7] Creating resource group..."
+echo "[1/6] Creating resource group..."
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
 
-echo "[2/7] Creating App Service plan (Linux, Free tier)..."
+echo "[2/6] Creating App Service plan (Linux, Free tier)..."
 az appservice plan create \
   --name "$PLAN_NAME" \
   --resource-group "$RESOURCE_GROUP" \
@@ -54,7 +49,7 @@ az appservice plan create \
   --is-linux \
   --output none
 
-echo "[3/7] Creating web app (Node.js 20)..."
+echo "[3/6] Creating web app (Node.js 20)..."
 az webapp create \
   --name "$APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
@@ -62,14 +57,13 @@ az webapp create \
   --runtime "NODE:20-lts" \
   --output none
 
-echo "[4/7] Setting environment variables..."
+echo "[4/6] Setting environment variables..."
 az webapp config appsettings set \
   --name "$APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
   --settings \
     WEBHOOK_SECRET="$WEBHOOK_SECRET" \
     PORT=8080 \
-    FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/service-account.json" \
   --output none
 
 az webapp config set \
@@ -78,24 +72,14 @@ az webapp config set \
   --startup-file "npm start" \
   --output none
 
-echo "[5/7] Uploading Firebase service account..."
-az webapp deploy \
-  --name "$APP_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --src-path "$SA_PATH" \
-  --target-path "service-account.json" \
-  --type static \
-  --output none
-
-echo "[6/7] Packaging and deploying server code..."
+echo "[5/6] Packaging and deploying server code..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_ZIP="$(mktemp /tmp/deploy-XXXXXX.zip)"
 
-# Zip from the server directory, excluding dev/sensitive files
+# Zip from the server directory, excluding dev files
 (cd "$SCRIPT_DIR" && zip -r "$DEPLOY_ZIP" . \
   -x "node_modules/*" \
   -x ".env" \
-  -x "service-account.json" \
   -x "deploy.sh" \
   -x ".git/*" \
   -x "*.zip" \
@@ -110,7 +94,7 @@ az webapp deploy \
 
 rm -f "$DEPLOY_ZIP"
 
-echo "[7/7] Verifying deployment..."
+echo "[6/6] Verifying deployment..."
 APP_URL="https://${APP_NAME}.azurewebsites.net"
 sleep 10  # Give Azure a moment to start the app
 

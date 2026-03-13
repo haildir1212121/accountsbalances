@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
+const { collection, query, where, getDocs, limit } = require('firebase/firestore');
 const normalizeNameKey = require('../utils/normalizeNameKey');
 const { db, APP_ID } = require('../config');
 
@@ -77,13 +78,13 @@ async function matchAccount(payload) {
 
   // 4. Firestore query fallback
   if (accountNumber) {
-    const colRef = db.collection('artifacts').doc(APP_ID)
-      .collection('public').doc('data').collection('accounts');
-    const snap = await colRef.where('accountId', '==', accountNumber).limit(1).get();
+    const colRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'accounts');
+    const q = query(colRef, where('accountId', '==', accountNumber), limit(1));
+    const snap = await getDocs(q);
     if (!snap.empty) {
-      const doc = snap.docs[0];
-      const data = doc.data();
-      return { docId: doc.id, clientName: data.clientName, accountId: data.accountId };
+      const docSnap = snap.docs[0];
+      const data = docSnap.data();
+      return { docId: docSnap.id, clientName: data.clientName, accountId: data.accountId };
     }
   }
 

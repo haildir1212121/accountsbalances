@@ -1,3 +1,4 @@
+const { doc, getDoc, updateDoc } = require('firebase/firestore');
 const { db, APP_ID } = require('../config');
 
 /**
@@ -7,11 +8,10 @@ const { db, APP_ID } = require('../config');
  * Returns { status: 'created' | 'duplicate' | 'error', message }
  */
 async function addTransaction(docId, bookingData) {
-  const docRef = db.collection('artifacts').doc(APP_ID)
-    .collection('public').doc('data').collection('accounts').doc(docId);
+  const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'accounts', docId);
 
-  const snap = await docRef.get();
-  if (!snap.exists) {
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) {
     return { status: 'error', message: `Account document ${docId} not found in Firestore` };
   }
 
@@ -73,7 +73,7 @@ async function addTransaction(docId, bookingData) {
 
   budgetData[bIdx] = budget;
 
-  await docRef.update({ budgetData, lastUpdated: new Date().toISOString() });
+  await updateDoc(docRef, { budgetData, lastUpdated: new Date().toISOString() });
 
   return { status: 'created', message: `Transaction ${newTx.id} added to ${docId}` };
 }

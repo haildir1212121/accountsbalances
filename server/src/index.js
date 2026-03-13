@@ -1,7 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { PORT } = require('./config');
+const { PORT, initFirebaseAuth } = require('./config');
 const { loadCSV } = require('./services/accountMatcher');
 const webhookRouter = require('./routes/webhook');
 
@@ -19,16 +19,25 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Load account CSV then start server
-try {
-  loadCSV();
-} catch (err) {
-  console.error('[startup] Failed to load accounts.csv:', err.message);
-  process.exit(1);
+// Load CSV and authenticate, then start server
+async function start() {
+  try {
+    loadCSV();
+  } catch (err) {
+    console.error('[startup] Failed to load accounts.csv:', err.message);
+    process.exit(1);
+  }
+
+  await initFirebaseAuth();
+
+  app.listen(PORT, () => {
+    console.log(`[server] Webhook server listening on port ${PORT}`);
+    console.log(`[server] POST /webhook/icabbi — receives iCabbi booking completions`);
+    console.log(`[server] GET  /health          — health check`);
+  });
 }
 
-app.listen(PORT, () => {
-  console.log(`[server] Webhook server listening on port ${PORT}`);
-  console.log(`[server] POST /webhook/icabbi — receives iCabbi booking completions`);
-  console.log(`[server] GET  /health          — health check`);
+start().catch(err => {
+  console.error('[startup] Fatal error:', err);
+  process.exit(1);
 });
