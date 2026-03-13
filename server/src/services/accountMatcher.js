@@ -15,7 +15,16 @@ let nameToRef = {};      // "aaron_saldana" → "202-002"
  * CSV columns: ID, REF, NAME, ACTIVE, ...
  */
 function loadCSV() {
-  const csvPath = path.join(__dirname, '..', '..', '..', 'accounts.csv');
+  // Try multiple locations: project root (standalone) and Vercel bundle paths
+  const candidates = [
+    path.join(__dirname, '..', '..', '..', 'accounts.csv'),   // standalone: server/src/services -> repo root
+    path.join(__dirname, '..', '..', 'accounts.csv'),          // Vercel bundle fallback
+    path.join(process.cwd(), 'accounts.csv'),                  // cwd fallback
+  ];
+  const csvPath = candidates.find(p => fs.existsSync(p));
+  if (!csvPath) {
+    throw new Error(`accounts.csv not found. Tried: ${candidates.join(', ')}`);
+  }
   const raw = fs.readFileSync(csvPath, 'utf-8');
   const records = parse(raw, { columns: true, skip_empty_lines: true, trim: true });
 
