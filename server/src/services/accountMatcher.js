@@ -15,10 +15,10 @@ let nameToRef = {};      // "aaron_saldana" → "202-002"
  * CSV columns: ID, REF, NAME, ACTIVE, ...
  */
 function loadCSV() {
-  // Try multiple locations: project root (standalone) and Vercel bundle paths
+  // Try multiple locations: server root, repo root (standalone), and Vercel bundle paths
   const candidates = [
+    path.join(__dirname, '..', '..', 'accounts.csv'),          // server/accounts.csv (Vercel root dir = server)
     path.join(__dirname, '..', '..', '..', 'accounts.csv'),   // standalone: server/src/services -> repo root
-    path.join(__dirname, '..', '..', 'accounts.csv'),          // Vercel bundle fallback
     path.join(process.cwd(), 'accounts.csv'),                  // cwd fallback
   ];
   const csvPath = candidates.find(p => fs.existsSync(p));
