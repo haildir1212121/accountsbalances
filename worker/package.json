@@ -1,0 +1,14 @@
+{
+  "name": "accountsbalances-webhook-worker",
+  "version": "1.0.0",
+  "description": "iCabbi webhook receiver for Cloudflare Workers",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build-accounts": "node scripts/build-accounts.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}

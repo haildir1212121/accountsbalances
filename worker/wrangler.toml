@@ -1,0 +1,5 @@
+name = "accountsbalances-webhook"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# WEBHOOK_SECRET is set via: npx wrangler secret put WEBHOOK_SECRET
