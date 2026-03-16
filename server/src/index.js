@@ -16,7 +16,7 @@ let _initPromise = null;
 function ensureInit() {
   if (!_initPromise) {
     _initPromise = (async () => {
-      loadCSV();
+      try { loadCSV(); } catch (err) { console.error('[init] CSV load failed:', err.message); }
       await initFirebaseAuth();
     })();
   }
@@ -39,6 +39,17 @@ app.use('/webhook', webhookRouter);
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Root route
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'accountsbalances-webhook-server' });
+});
+
+// Error handler
+app.use((err, _req, res, _next) => {
+  console.error('[error]', err);
+  res.status(500).json({ error: err.message });
 });
 
 // Export for Vercel serverless

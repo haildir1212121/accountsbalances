@@ -21,17 +21,27 @@ const firebaseConfig = {
   measurementId: "G-5RJM9SQDS1"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app, auth, db;
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  console.log('[firebase] App initialized');
+} catch (err) {
+  console.error('[firebase] Init failed:', err.message);
+}
 
 async function initFirebaseAuth() {
+  if (!auth) {
+    console.warn('[firebase] Auth not available, skipping anonymous sign-in');
+    return;
+  }
   try {
     await signInAnonymously(auth);
     console.log('[firebase] Signed in anonymously');
   } catch (err) {
     console.error('[firebase] Anonymous auth failed:', err.message);
-    throw err;
+    // Don't throw — allow the function to still handle requests
   }
 }
 
