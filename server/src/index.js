@@ -50,8 +50,10 @@ if (require.main === module) {
     .then(() => {
       app.listen(PORT, () => {
         console.log(`[server] Webhook server listening on port ${PORT}`);
-        console.log(`[server] POST /webhook/icabbi — receives iCabbi booking completions`);
-        console.log(`[server] GET  /health          — health check`);
+        console.log(`[server] POST /webhook/icabbi       — single completed trip`);
+        console.log(`[server] POST /webhook/icabbi/batch — batch completed trips`);
+        console.log(`[server] GET  /webhook/stats        — webhook activity stats`);
+        console.log(`[server] GET  /health               — health check`);
       });
     })
     .catch(err => {

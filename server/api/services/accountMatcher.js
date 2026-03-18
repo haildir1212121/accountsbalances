@@ -10,6 +10,21 @@ let refToName = {};      // "202-002" → "AARON SALDANA"
 let icabbiIdToRef = {};  // "80102906" → "202-002"
 let nameToRef = {};      // "aaron_saldana" → "202-002"
 
+// Account group index: "202" → ["202-002", "202-003", ...], "671" → [...], "542" → [...]
+let accountGroups = {};
+
+// Known account group prefixes (derived from CSV on load)
+let knownPrefixes = new Set();
+
+/**
+ * Extract the account group prefix from a REF like "202-002" → "202"
+ */
+function getAccountGroup(ref) {
+  if (!ref) return null;
+  const dash = ref.indexOf('-');
+  return dash > 0 ? ref.substring(0, dash) : null;
+}
+
 /**
  * Parse accounts.csv and build lookup maps.
  * CSV columns: ID, REF, NAME, ACTIVE, ...
@@ -31,6 +46,8 @@ function loadCSV() {
   refToName = {};
   icabbiIdToRef = {};
   nameToRef = {};
+  accountGroups = {};
+  knownPrefixes = new Set();
 
   for (const row of records) {
     const id = (row.ID || '').trim();
@@ -42,9 +59,47 @@ function loadCSV() {
     refToName[ref] = name;
     if (id) icabbiIdToRef[id] = ref;
     nameToRef[normalizeNameKey(name)] = ref;
+
+    // Build account group index
+    const group = getAccountGroup(ref);
+    if (group) {
+      knownPrefixes.add(group);
+      if (!accountGroups[group]) accountGroups[group] = [];
+      accountGroups[group].push(ref);
+    }
   }
 
-  console.log(`[accountMatcher] Loaded ${Object.keys(refToName).length} accounts from CSV`);
+  const groupSummary = Object.entries(accountGroups)
+    .map(([prefix, refs]) => `${prefix}: ${refs.length}`)
+    .join(', ');
+  console.log(`[accountMatcher] Loaded ${Object.keys(refToName).length} accounts from CSV (${groupSummary})`);
+}
+
+/**
+ * Check whether a given account_number or resolved REF belongs to a known account in the CSV.
+ * Returns true if the account is recognized, false otherwise.
+ */
+function isKnownAccount(accountNumber) {
+  if (!accountNumber) return false;
+  const num = String(accountNumber).trim();
+  // Direct REF match
+  if (refToName[num]) return true;
+  // iCabbi ID match
+  if (icabbiIdToRef[num]) return true;
+  return false;
+}
+
+/**
+ * Return summary stats about loaded accounts, grouped by prefix.
+ */
+function getAccountStats() {
+  return {
+    totalAccounts: Object.keys(refToName).length,
+    groups: Object.fromEntries(
+      Object.entries(accountGroups).map(([prefix, refs]) => [prefix, refs.length])
+    ),
+    knownPrefixes: [...knownPrefixes],
+  };
 }
 
 /**
@@ -100,4 +155,4 @@ async function matchAccount(payload) {
   return null;
 }
 
-module.exports = { loadCSV, matchAccount };
+module.exports = { loadCSV, matchAccount, isKnownAccount, getAccountGroup, getAccountStats };
