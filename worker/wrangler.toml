@@ -1,0 +1,11 @@
+name = "icabbi-webhook"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# Environment variables — set these via `wrangler secret put` or in the dashboard
+# SUPABASE_URL       = "https://xxx.supabase.co"
+# SUPABASE_SERVICE_KEY = "ey..."
+# WEBHOOK_SECRET     = "your-shared-secret"
+
+[vars]
+ENVIRONMENT = "production"
