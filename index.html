@@ -257,28 +257,15 @@
     </script>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-  import { getFirestore, collection, doc, setDoc, onSnapshot, query, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyB-P87cAnvDHpCoPocqhjHE9zGaDQXxe2U",
-    authDomain: "balance-t.firebaseapp.com",
-    databaseURL: "https://balance-t-default-rtdb.firebaseio.com",
-    projectId: "balance-t",
-    storageBucket: "balance-t.firebasestorage.app",
-    messagingSenderId: "893924100931",
-    appId: "1:893924100931:web:70427b3ff655341594fdf6",
-    measurementId: "G-5RJM9SQDS1"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-  const appId = 'balance-t-default';
+  // ── Supabase Configuration ──────────────────────────────────────────────
+  // Replace these with your Supabase project URL and anon key
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let state = {
-    firebaseUser: null,
     accounts: [],
     currentUser: null,
     activeAccount: null,
@@ -287,7 +274,10 @@
     loading: true,
     searchQuery: "",
     charts: { trend: null, topSpenders: null, dynamic: [], radar: null, clientRadar: null, adminTrend: null, clientTrend: null },
-    filterAccountId: null
+    filterAccountId: null,
+    _rawAccounts: [],
+    _rawTrips: [],
+    _rawBudgetMonths: []
   };
 
   const els = {
@@ -538,16 +528,13 @@ async function saveClientInfo() {
   if (!newName) return alert("Client name cannot be empty.");
 
   try {
-    await updateDoc(
-      doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id),
-      {
-        clientName: newName,
-        organization: newOrg || 'Imported',
-        accountId: newAccountId
-      }
-    );
+    const { error } = await supabase.from('accounts')
+      .update({ name: newName, organization: newOrg || 'Imported', updated_at: new Date().toISOString() })
+      .eq('ref', state.activeAccount.ref);
+    if (error) throw error;
 
     alert("Client info updated.");
+    await fetchAllData();
   } catch (e) {
     console.error(e);
     alert("Failed to update client info.");
@@ -565,34 +552,44 @@ async function saveHistoryChanges() {
   }
 
   try {
-    const upBudget = JSON.parse(JSON.stringify(state.activeAccount.budgetData || []));
-    const idx = upBudget.findIndex(b => b.monthLabel === historyDraft.monthLabel);
-    if (idx === -1) return alert("Month not found.");
+    const ref = state.activeAccount.ref;
+    const monthLabel = historyDraft.monthLabel;
 
-    // Rebuild transactions list (no "Monthly Limit" fake row)
+    // Parse month range for deletion
+    const mDate = new Date(monthLabel);
+    const startDate = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}-01`;
+    const endMonth = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 1);
+    const endDate = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+    // Delete existing trips for this account+month
+    await supabase.from('trips')
+      .delete()
+      .eq('account_ref', ref)
+      .gte('trip_date', startDate)
+      .lt('trip_date', endDate);
+
+    // Re-insert edited transactions
     const rebuiltTx = historyDraft.transactions.map(tx => ({
-      id: tx.id,
-      date: tx.date,
+      booking_id: (tx.id && tx.id.startsWith('t_')) ? null : (tx.id || `manual_${Date.now()}_${Math.random().toString(16).slice(2)}`),
+      account_ref: ref,
+      account_name: state.activeAccount.clientName,
+      account_group: state.activeAccount.accountId,
+      fare: cleanAmount(tx.amount),
+      trip_date: tx.date,
       description: tx.description || '',
-      amount: cleanAmount(tx.amount)
+      source: 'manual'
     }));
 
-    const spent = calculateRealSpent(rebuiltTx);
-    const lim = cleanAmount(upBudget[idx].monthlyLimit);
-
-    upBudget[idx].transactions = rebuiltTx;
-    upBudget[idx].totalSpent = spent;
-    upBudget[idx].remainingBudget = lim - spent;
-
-    await updateDoc(
-      doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id),
-      { budgetData: upBudget }
-    );
+    if (rebuiltTx.length > 0) {
+      const { error: insErr } = await supabase.from('trips').insert(rebuiltTx);
+      if (insErr) throw insErr;
+    }
 
     alert("History updated.");
-
-    // Keep local UI in sync immediately
-    state.activeAccount.budgetData = upBudget;
+    await fetchAllData();
+    if (state.activeAccount) {
+      state.activeAccount = state.accounts.find(a => a.id === state.activeAccount.id) || state.activeAccount;
+    }
     renderClientDashboard();
     if (state.currentUser?.role === 'admin') renderAdminDashboard();
   } catch (e) {
@@ -619,40 +616,127 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
       .replace(/\s/g, "_");
   }
 
-  // ---------- AUTH ----------
-  onAuthStateChanged(auth, (user) => {
-    state.firebaseUser = user;
-    if (user) setupDataListener();
-  });
+  // ── DATA LAYER: Supabase → budgetData adapter ─────────────────────────
 
-  async function initAuth() {
-    try {
-      if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token);
-      else await signInAnonymously(auth);
-    } catch (e) {}
+  function buildBudgetData(accountRef, budgetMonths, trips) {
+    const accountTrips = trips.filter(t => t.account_ref === accountRef);
+    const accountMonths = budgetMonths.filter(m => m.account_ref === accountRef);
+
+    // Group trips by month label
+    const tripsByMonth = {};
+    accountTrips.forEach(t => {
+      const d = new Date(t.trip_date);
+      if (isNaN(d)) return;
+      const key = `${d.getMonth() + 1}/1/${d.getFullYear()}`;
+      if (!tripsByMonth[key]) tripsByMonth[key] = [];
+      tripsByMonth[key].push({
+        id: `t_${t.id}`,
+        _supaId: t.id,
+        date: t.trip_date,
+        description: t.description || `iCabbi #${t.booking_id || ''}`,
+        amount: parseFloat(t.fare) || 0
+      });
+    });
+
+    const result = [];
+    const seenLabels = new Set();
+
+    // Months with explicit limits
+    accountMonths.forEach(m => {
+      const txs = tripsByMonth[m.month_label] || [];
+      const spent = txs.reduce((s, t) => s + t.amount, 0);
+      seenLabels.add(m.month_label);
+      result.push({
+        monthLabel: m.month_label,
+        monthlyLimit: parseFloat(m.monthly_limit) || 600,
+        totalSpent: spent,
+        remainingBudget: (parseFloat(m.monthly_limit) || 600) - spent,
+        transactions: txs
+      });
+    });
+
+    // Months with trips but no explicit limit
+    Object.keys(tripsByMonth).forEach(label => {
+      if (!seenLabels.has(label)) {
+        const txs = tripsByMonth[label];
+        const spent = txs.reduce((s, t) => s + t.amount, 0);
+        result.push({
+          monthLabel: label,
+          monthlyLimit: 600,
+          totalSpent: spent,
+          remainingBudget: 600 - spent,
+          transactions: txs
+        });
+      }
+    });
+
+    result.sort((a, b) => new Date(a.monthLabel) - new Date(b.monthLabel));
+    return result;
   }
 
-  function setupDataListener() {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'accounts'));
-    onSnapshot(q, (snapshot) => {
-      const accounts = [];
-      snapshot.forEach(d => { const data = d.data(); data.id = d.id; accounts.push(data); });
-      state.accounts = accounts;
+  function assembleAccounts(accountRows, budgetMonthRows, tripRows) {
+    return accountRows.map(row => ({
+      id: row.ref,
+      ref: row.ref,
+      icabbi_id: row.icabbi_id,
+      clientName: row.name,
+      accountId: row.account_group,
+      organization: row.organization || 'Imported',
+      auth_password: row.auth_password || 'Password',
+      auth_password_changed: row.auth_password_changed || false,
+      budgetData: buildBudgetData(row.ref, budgetMonthRows, tripRows),
+      lastUpdated: row.updated_at
+    }));
+  }
+
+  async function fetchAllData() {
+    try {
+      const [accRes, tripRes, bmRes] = await Promise.all([
+        supabase.from('accounts').select('*'),
+        supabase.from('trips').select('*'),
+        supabase.from('budget_months').select('*')
+      ]);
+
+      if (accRes.error) throw accRes.error;
+      state._rawAccounts = accRes.data || [];
+      state._rawTrips = tripRes.data || [];
+      state._rawBudgetMonths = bmRes.data || [];
+
+      state.accounts = assembleAccounts(state._rawAccounts, state._rawBudgetMonths, state._rawTrips);
       state.loading = false;
       document.getElementById('login-btn').innerHTML = 'Sign In';
+
+      const statusEl = document.getElementById('system-status');
+      if (statusEl) statusEl.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-green-500"></div><span>Connected</span>';
 
       if (state.currentUser) {
         if (state.currentUser.role === 'admin') {
           renderSidebar();
-          if (state.activeAccount) renderClientDashboard(); else  renderAdminDashboard();
+          if (state.activeAccount) {
+            state.activeAccount = state.accounts.find(a => a.id === state.activeAccount.id) || state.activeAccount;
+            renderClientDashboard();
+          } else {
+            renderAdminDashboard();
+          }
         } else if (state.currentUser.role === 'client') {
           const fresh = state.accounts.find(a => a.id === state.currentUser.id);
-	getEl('adminEditClientBtn').classList.add('hidden');
+          getEl('adminEditClientBtn').classList.add('hidden');
           if (fresh) { state.currentUser.data = fresh; state.activeAccount = fresh; updateUI(); }
         }
       }
-    });
+    } catch (err) {
+      console.error('[fetchAllData]', err);
+      const statusEl = document.getElementById('system-status');
+      if (statusEl) statusEl.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-red-500"></div><span>Error</span>';
+    }
   }
+
+  // Realtime subscriptions — auto-refresh when data changes
+  supabase.channel('portal-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, () => fetchAllData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => fetchAllData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'budget_months' }, () => fetchAllData())
+    .subscribe();
 
   // --- ADMIN DASHBOARD ---
   function renderAdminDashboard() {
@@ -1096,44 +1180,58 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
           try {
             if (!c.clientName || !c.accountId) throw new Error("Missing clientName or accountId");
 
-            // deterministic id (reduces duplicates caused by punctuation/parenthesis/+1)
-            const id = `client_${normalizeNameKey(c.clientName)}_${c.accountId || "000"}`;
+            const ref = `${c.accountId}-${normalizeNameKey(c.clientName).substring(0, 20)}`;
+            const exist = state._rawAccounts.find(a => a.name === c.clientName && a.account_group === String(c.accountId));
 
-            // If this document already exists in current state, preserve its password fields safely
-            const exist = state.accounts.find(a => a.id === id);
+            const accRef = exist ? exist.ref : ref;
 
-            const existingPass =
-              exist && typeof exist.auth_password === "string" && exist.auth_password.trim()
-                ? exist.auth_password.trim()
-                : "Password";
+            // Upsert account
+            if (!exist) {
+              const { error: accErr } = await supabase.from('accounts').insert({
+                ref: accRef,
+                name: c.clientName,
+                account_group: String(c.accountId),
+                organization: c.organization || 'Imported',
+                auth_password: 'Password',
+                auth_password_changed: false
+              });
+              if (accErr && !accErr.message.includes('duplicate')) throw accErr;
+            }
 
-            const existingChanged =
-              exist && typeof exist.auth_password_changed === "boolean"
-                ? exist.auth_password_changed
-                : false;
+            // Import budget months and transactions
+            if (Array.isArray(c.budgetData)) {
+              for (const bd of c.budgetData) {
+                if (!bd.monthLabel) continue;
 
-            const docDataRaw = {
-              clientName: c.clientName,
-              organization: c.organization || 'Imported',
-              accountId: c.accountId,
-              budgetData: Array.isArray(c.budgetData) ? c.budgetData : [],
-              lastUpdated: new Date().toISOString(),
-              auth_password: existingPass,
-              auth_password_changed: existingChanged
-            };
+                // Upsert budget month
+                await supabase.from('budget_months').upsert({
+                  account_ref: accRef,
+                  month_label: bd.monthLabel,
+                  monthly_limit: cleanAmount(bd.monthlyLimit) || 600
+                }, { onConflict: 'account_ref,month_label' });
 
-            // Critical: strip undefined anywhere (especially inside budgetData)
-            const docData = stripUndefinedDeep(docDataRaw);
+                // Insert transactions as trips
+                const txs = getCleanTransactions(bd.transactions || []);
+                for (const tx of txs) {
+                  if (!tx.date) continue;
+                  await supabase.from('trips').insert({
+                    booking_id: tx.id || `import_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                    account_ref: accRef,
+                    account_name: c.clientName,
+                    account_group: String(c.accountId),
+                    fare: cleanAmount(tx.amount),
+                    trip_date: tx.date,
+                    description: tx.description || '',
+                    source: 'import'
+                  }).then(r => { if (r.error && !r.error.message.includes('duplicate')) console.warn(r.error); });
+                }
+              }
+            }
 
-            await setDoc(
-              doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id),
-              docData
-            );
-
-            addLog(`✅ Imported: ${c.clientName}`, 'success');
+            addLog(`Imported: ${c.clientName}`, 'success');
             successCount++;
           } catch (recErr) {
-            addLog(`❌ Failed: ${c.clientName || 'Unknown'} - ${recErr.message}`, 'error');
+            addLog(`Failed: ${c.clientName || 'Unknown'} - ${recErr.message}`, 'error');
             failCount++;
           }
         }
@@ -1227,38 +1325,26 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
       const dAcc = state.accounts.find(a => a.id === dId);
 
       const sBudget = JSON.parse(JSON.stringify(sAcc.budgetData));
-      const dBudget = JSON.parse(JSON.stringify(dAcc.budgetData || []));
 
       const toMove = Array.from(checkboxes)
         .map(cb => cb.value.split('|').map(Number))
         .sort((a, b) => b[1] - a[1]);
 
+      // Collect Supabase trip IDs to reassign
+      const tripIdsToMove = [];
       toMove.forEach(([mIdx, tIdx]) => {
         const tx = sBudget[mIdx].transactions[tIdx];
-        sBudget[mIdx].transactions.splice(tIdx, 1);
-        sBudget[mIdx].totalSpent -= cleanAmount(tx.amount);
-        sBudget[mIdx].remainingBudget += cleanAmount(tx.amount);
-
-        const txDate = new Date(tx.date);
-        let dMIdx = dBudget.findIndex(b => {
-          const d = new Date(b.monthLabel);
-          return d.getMonth() === txDate.getMonth() && d.getFullYear() === txDate.getFullYear();
-        });
-
-        if (dMIdx === -1) {
-          dBudget.push({ monthLabel: `${txDate.getMonth() + 1}/1/${txDate.getFullYear()}`, monthlyLimit: 600, totalSpent: 0, remainingBudget: 600, transactions: [] });
-          dMIdx = dBudget.length - 1;
-        }
-
-        if (!dBudget[dMIdx].transactions) dBudget[dMIdx].transactions = [];
-        dBudget[dMIdx].transactions.push(tx);
-        dBudget[dMIdx].totalSpent += cleanAmount(tx.amount);
-        dBudget[dMIdx].remainingBudget = cleanAmount(dBudget[dMIdx].monthlyLimit) - dBudget[dMIdx].totalSpent;
+        if (tx && tx._supaId) tripIdsToMove.push(tx._supaId);
       });
 
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId), { budgetData: sBudget });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: dBudget });
+      if (tripIdsToMove.length > 0) {
+        const { error } = await supabase.from('trips')
+          .update({ account_ref: dAcc.ref, account_name: dAcc.clientName, account_group: dAcc.accountId })
+          .in('id', tripIdsToMove);
+        if (error) throw error;
+      }
 
+      await fetchAllData();
       getEl('mergeModal').classList.add('hidden');
       alert("Transactions Moved Successfully.");
     } catch (e) {
@@ -1277,28 +1363,27 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
       const sourceAcc = state.accounts.find(a => a.id === sId);
       const destAcc = state.accounts.find(a => a.id === dId);
 
-      let newBudget = JSON.parse(JSON.stringify(destAcc.budgetData || []));
+      // Move all trips from source to dest
+      const { error: moveErr } = await supabase.from('trips')
+        .update({ account_ref: destAcc.ref, account_name: destAcc.clientName, account_group: destAcc.accountId })
+        .eq('account_ref', sourceAcc.ref);
+      if (moveErr) throw moveErr;
 
-      if (sourceAcc.budgetData) {
-        sourceAcc.budgetData.forEach(sMonth => {
-          const existingIdx = newBudget.findIndex(d => d.monthLabel === sMonth.monthLabel);
-          if (existingIdx !== -1) {
-            const destMonth = newBudget[existingIdx];
-            const combinedTx = [...(destMonth.transactions || []), ...(sMonth.transactions || [])];
-            const newSpent = calculateRealSpent(combinedTx);
-            newBudget[existingIdx].transactions = combinedTx;
-            newBudget[existingIdx].totalSpent = newSpent;
-            newBudget[existingIdx].remainingBudget = cleanAmount(destMonth.monthlyLimit) - newSpent;
-          } else {
-            newBudget.push(sMonth);
-          }
-        });
+      // Move budget months from source to dest (merge limits)
+      const srcMonths = state._rawBudgetMonths.filter(m => m.account_ref === sourceAcc.ref);
+      for (const sm of srcMonths) {
+        await supabase.from('budget_months').upsert({
+          account_ref: destAcc.ref,
+          month_label: sm.month_label,
+          monthly_limit: sm.monthly_limit
+        }, { onConflict: 'account_ref,month_label' });
       }
 
-      newBudget.sort((a, b) => new Date(a.monthLabel) - new Date(b.monthLabel));
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', dId), { budgetData: newBudget });
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', sId));
+      // Delete source budget months, then source account
+      await supabase.from('budget_months').delete().eq('account_ref', sourceAcc.ref);
+      await supabase.from('accounts').delete().eq('ref', sourceAcc.ref);
 
+      await fetchAllData();
       getEl('mergeModal').classList.add('hidden');
       alert("Merged");
     } catch (err) {
@@ -1326,7 +1411,16 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
 
     try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', id));
+      const acc = state.accounts.find(a => a.id === id);
+      if (!acc) return alert("Account not found.");
+
+      // Delete trips, budget_months, then account (cascade via FK, but be explicit)
+      await supabase.from('trips').delete().eq('account_ref', acc.ref);
+      await supabase.from('budget_months').delete().eq('account_ref', acc.ref);
+      const { error } = await supabase.from('accounts').delete().eq('ref', acc.ref);
+      if (error) throw error;
+
+      await fetchAllData();
       getEl('deleteModal').classList.add('hidden');
       if (state.activeAccount && state.activeAccount.id === id) window.resetToOverview();
       alert("Client deleted successfully.");
@@ -1350,15 +1444,19 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   safeListen('saveLimitBtn', 'click', async () => {
     if (!state.activeAccount) return;
     const newLim = parseFloat(getEl('settingNewLimit').value);
+    const monthLabel = getEl('settingActiveMonth').textContent;
     try {
-      const upBudget = [...state.activeAccount.budgetData];
-      const idx = upBudget.findIndex(b => b.monthLabel === getEl('settingActiveMonth').textContent);
-      if (idx !== -1) {
-        upBudget[idx].monthlyLimit = newLim;
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
-        getEl('settingsModal').classList.add('hidden');
-      }
-    } catch (e) {}
+      const { error } = await supabase.from('budget_months').upsert({
+        account_ref: state.activeAccount.ref,
+        month_label: monthLabel,
+        monthly_limit: newLim
+      }, { onConflict: 'account_ref,month_label' });
+      if (error) throw error;
+      await fetchAllData();
+      state.activeAccount = state.accounts.find(a => a.id === state.activeAccount.id) || state.activeAccount;
+      getEl('settingsModal').classList.add('hidden');
+      renderClientDashboard();
+    } catch (e) { console.error(e); }
   });
 
   safeListen('addMonthBtn', 'click', async () => {
@@ -1367,10 +1465,19 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     if (!dateVal) return;
     const [yr, mo] = dateVal.split('-');
     const newLabel = `${parseInt(mo)}/1/${yr}`;
-    const upBudget = [...state.activeAccount.budgetData];
-    upBudget.push({ monthLabel: newLabel, monthlyLimit: parseFloat(getEl('settingNewMonthLimit').value), totalSpent: 0, remainingBudget: parseFloat(getEl('settingNewMonthLimit').value), transactions: [] });
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
-    getEl('settingsModal').classList.add('hidden');
+    const newLimit = parseFloat(getEl('settingNewMonthLimit').value) || 600;
+    try {
+      const { error } = await supabase.from('budget_months').upsert({
+        account_ref: state.activeAccount.ref,
+        month_label: newLabel,
+        monthly_limit: newLimit
+      }, { onConflict: 'account_ref,month_label' });
+      if (error) throw error;
+      await fetchAllData();
+      state.activeAccount = state.accounts.find(a => a.id === state.activeAccount.id) || state.activeAccount;
+      getEl('settingsModal').classList.add('hidden');
+      renderClientDashboard();
+    } catch (e) { console.error(e); }
   });
 
   // --- ADD TX ---
@@ -1392,21 +1499,24 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     if (isNaN(amt) || !date) return alert("Invalid inputs");
 
     try {
-      const txDate = new Date(date);
-      const bIdx = state.activeAccount.budgetData.findIndex(b => {
-        const bDate = new Date(b.monthLabel);
-        return bDate.getMonth() === txDate.getMonth() && bDate.getFullYear() === txDate.getFullYear();
+      const { error } = await supabase.from('trips').insert({
+        booking_id: `manual_${Date.now()}`,
+        account_ref: state.activeAccount.ref,
+        account_name: state.activeAccount.clientName,
+        account_group: state.activeAccount.accountId,
+        fare: amt,
+        trip_date: date,
+        description: desc || 'Manual',
+        source: 'manual'
       });
-      if (bIdx === -1) return alert("No budget found");
+      if (error) throw error;
 
-      const newTx = { date, description: desc || 'Manual', amount: amt, id: Date.now().toString() };
-      const upBudget = [...state.activeAccount.budgetData];
-      upBudget[bIdx].transactions = [...(upBudget[bIdx].transactions || []), newTx];
-      upBudget[bIdx].totalSpent = (upBudget[bIdx].totalSpent || 0) + amt;
-
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'accounts', state.activeAccount.id), { budgetData: upBudget });
+      await fetchAllData();
+      state.activeAccount = state.accounts.find(a => a.id === state.activeAccount.id) || state.activeAccount;
       getEl('txModal').classList.add('hidden');
+      renderClientDashboard();
     } catch (e) {
+      console.error(e);
       alert("Error saving");
     }
   });
@@ -1414,7 +1524,7 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   document.getElementById('real-time-date').textContent =
     new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-  initAuth();
+  fetchAllData();
 </script>
 
 </body>
