@@ -975,6 +975,17 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
           <td class="px-6 py-4 text-sm text-right font-bold text-black">${formatCurrency(cleanAmount(tx.amount))}</td>
         </tr>
       `).join('');
+    } else {
+      // No budget data for this client — clear everything
+      state.selectedMonthLabel = null;
+      getEl('cCardLimit').textContent = formatCurrency(0);
+      getEl('cCardSpent').textContent = formatCurrency(0);
+      getEl('cCardRemaining').textContent = formatCurrency(0);
+      getEl('cCardRemaining').className = 'text-2xl font-bold mt-1 text-green-600';
+      getEl('cProgressBar').style.width = '0%';
+      getEl('cUtilizationText').textContent = '0% Used';
+      getEl('cTxBody').innerHTML = '<tr><td colspan="3" class="px-6 py-8 text-center text-sm text-gray-400 italic">No transactions yet.</td></tr>';
+      getEl('cTxCount').textContent = '0 entries';
     }
   }
 
@@ -1069,7 +1080,18 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
   if (!acc) return;
 
   state.activeAccount = acc;
-  state.selectedMonthLabel = mLabel;
+  state.selectedMonthLabel = mLabel;   // reset to null (or explicit) on every client switch
+
+  // Clear stale client dashboard content immediately
+  getEl('cCardLimit').textContent = '$0.00';
+  getEl('cCardSpent').textContent = '$0.00';
+  getEl('cCardRemaining').textContent = '$0.00';
+  getEl('cCardRemaining').className = 'text-2xl font-bold mt-1 text-green-600';
+  getEl('cProgressBar').style.width = '0%';
+  getEl('cUtilizationText').textContent = '0% Used';
+  getEl('cTxBody').innerHTML = '';
+  getEl('cTxCount').textContent = '0 entries';
+  getEl('clientMonthSelector').innerHTML = '';
 
   getEl('adminView').classList.add('hidden');
   getEl('emptyState').classList.add('hidden');
