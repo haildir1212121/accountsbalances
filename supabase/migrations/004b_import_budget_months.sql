@@ -3,7 +3,6 @@
 
 BEGIN;
 
--- ── BUDGET MONTHS ──────────────────────────────────────────────────
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
   ('671-002', '10/1/2025', 1600.0),
@@ -383,8 +382,6 @@ VALUES
   ('671-014', '2/1/2026', 600.0),
   ('671-014', '3/1/2026', 600.0),
   ('671-907', '1/1/2026', 600.0),
-  ('671-014', '1/1/2026', 600.0),
-  ('671-014', '2/1/2026', 600.0),
   ('202-015', '5/1/2025', 600.0),
   ('202-015', '7/1/2025', 600.0),
   ('202-015', '8/1/2025', 600.0),
@@ -505,14 +502,13 @@ VALUES
   ('202-023', '3/1/2026', 250.0),
   ('202-023', '4/1/2026', 250.0),
   ('202-023', '5/1/2026', 250.0),
-  ('202-023', '6/1/2026', 250.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-023', '6/1/2026', 250.0),
+  ('202-023', '7/1/2026', 250.0),
+  ('202-023', '4/1/2025', 600.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-023', '7/1/2026', 250.0),
-  ('202-023', '4/1/2025', 600.0),
   ('202-023', '6/1/2025', 600.0),
   ('202-023', '5/1/2025', 600.0),
   ('202-023', '7/1/2025', 600.0),
@@ -1010,14 +1006,13 @@ VALUES
   ('202-051', '10/1/2025', 500.0),
   ('202-051', '11/1/2025', 500.0),
   ('202-051', '12/1/2025', 500.0),
-  ('202-051', '1/1/2026', 500.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-051', '1/1/2026', 500.0),
+  ('202-051', '2/1/2026', 500.0),
+  ('202-051', '3/1/2026', 500.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-051', '2/1/2026', 500.0),
-  ('202-051', '3/1/2026', 500.0),
   ('202-051', '4/1/2026', 500.0),
   ('202-051', '5/1/2026', 500.0),
   ('202-051', '6/1/2026', 500.0),
@@ -1515,14 +1510,13 @@ VALUES
   ('202-67', '12/1/2025', 150.0),
   ('202-67', '1/1/2026', 150.0),
   ('202-936', '2/1/2026', 600.0),
-  ('202-937', '1/1/2026', 600.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-937', '1/1/2026', 600.0),
+  ('202-937', '2/1/2026', 600.0),
+  ('202-68', '3/1/2025', 600.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-937', '2/1/2026', 600.0),
-  ('202-68', '3/1/2025', 600.0),
   ('202-68', '4/1/2025', 600.0),
   ('202-68', '5/1/2025', 600.0),
   ('202-68', '6/1/2025', 600.0),
@@ -2020,14 +2014,13 @@ VALUES
   ('671-924', '4/1/2026', 400.0),
   ('671-924', '5/1/2026', 400.0),
   ('671-924', '6/1/2026', 400.0),
-  ('671-924', '7/1/2026', 400.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('671-924', '7/1/2026', 400.0),
+  ('671-068', '9/1/2025', 432.0),
+  ('671-068', '10/1/2025', 572.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('671-068', '9/1/2025', 432.0),
-  ('671-068', '10/1/2025', 572.0),
   ('671-068', '11/1/2025', 572.0),
   ('671-068', '12/1/2025', 572.0),
   ('671-068', '1/1/2026', 432.0),
@@ -2525,14 +2518,13 @@ VALUES
   ('202-100', '1/1/2026', 150.0),
   ('202-100', '2/1/2026', 150.0),
   ('202-100', '3/1/2026', 150.0),
-  ('202-100', '4/1/2026', 150.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-100', '4/1/2026', 150.0),
+  ('202-100', '5/1/2026', 150.0),
+  ('202-100', '5/1/2025', 600.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-100', '5/1/2026', 150.0),
-  ('202-100', '5/1/2025', 600.0),
   ('202-100', '6/1/2025', 600.0),
   ('202-100', '7/1/2025', 600.0),
   ('671-930', '1/1/2026', 600.0),
@@ -3030,14 +3022,13 @@ VALUES
   ('202-121', '10/1/2025', 300.0),
   ('202-121', '11/1/2025', 300.0),
   ('202-121', '12/1/2025', 300.0),
-  ('202-121', '1/1/2026', 300.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-121', '1/1/2026', 300.0),
+  ('202-121', '2/1/2026', 300.0),
+  ('202-121', '3/1/2026', 300.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-121', '2/1/2026', 300.0),
-  ('202-121', '3/1/2026', 300.0),
   ('202-121', '4/1/2026', 300.0),
   ('202-975', '12/1/2024', 100.0),
   ('202-123', '8/1/2025', 100.0),
@@ -3535,14 +3526,13 @@ VALUES
   ('202-133', '3/1/2025', 600.0),
   ('202-134', '8/1/2025', 150.0),
   ('202-134', '9/1/2025', 150.0),
-  ('202-134', '10/1/2025', 150.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+  ('202-134', '10/1/2025', 150.0),
+  ('202-134', '11/1/2025', 150.0),
+  ('202-134', '12/1/2025', 150.0)
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 INSERT INTO budget_months (account_ref, month_label, monthly_limit)
 VALUES
-  ('202-134', '11/1/2025', 150.0),
-  ('202-134', '12/1/2025', 150.0),
   ('202-134', '1/1/2026', 150.0),
   ('202-134', '2/1/2026', 150.0),
   ('202-134', '3/1/2026', 150.0),
@@ -3606,7 +3596,6 @@ VALUES
   ('202-136', '6/1/2025', 600.0),
   ('202-136', '8/1/2025', 600.0),
   ('671-944', '2/1/2026', 600.0)
-ON CONFLICT (account_ref, month_label) DO UPDATE SET
-  monthly_limit = EXCLUDED.monthly_limit;
+ON CONFLICT (account_ref, month_label) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit;
 
 COMMIT;
