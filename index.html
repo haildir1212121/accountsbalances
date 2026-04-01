@@ -689,18 +689,38 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     }));
   }
 
+  /**
+   * Fetch all rows from a Supabase table, paginating past the 1000-row default limit.
+   */
+  async function fetchAll(table, select = '*') {
+    const pageSize = 1000;
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(select)
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRows = allRows.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return allRows;
+  }
+
   async function fetchAllData() {
     try {
-      const [accRes, tripRes, bmRes] = await Promise.all([
-        supabase.from('accounts').select('*'),
-        supabase.from('trips').select('*'),
-        supabase.from('budget_months').select('*')
+      const [accounts, trips, budgetMonths] = await Promise.all([
+        fetchAll('accounts'),
+        fetchAll('trips'),
+        fetchAll('budget_months')
       ]);
 
-      if (accRes.error) throw accRes.error;
-      state._rawAccounts = accRes.data || [];
-      state._rawTrips = tripRes.data || [];
-      state._rawBudgetMonths = bmRes.data || [];
+      state._rawAccounts = accounts;
+      state._rawTrips = trips;
+      state._rawBudgetMonths = budgetMonths;
 
       state.accounts = assembleAccounts(state._rawAccounts, state._rawBudgetMonths, state._rawTrips);
       state.loading = false;
