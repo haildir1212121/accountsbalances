@@ -625,9 +625,10 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
     // Group trips by month label
     const tripsByMonth = {};
     accountTrips.forEach(t => {
-      const d = new Date(t.trip_date);
-      if (isNaN(d)) return;
-      const key = `${d.getMonth() + 1}/1/${d.getFullYear()}`;
+  // Split the YYYY-MM-DD string to avoid timezone shifts
+  const parts = t.trip_date.split('-');
+  if (parts.length !== 3) return;
+  const key = `${parseInt(parts[1], 10)}/1/${parts[0]}`;
       if (!tripsByMonth[key]) tripsByMonth[key] = [];
       tripsByMonth[key].push({
         id: `t_${t.id}`,
@@ -800,8 +801,8 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
               if (amt < lowTx) lowTx = amt;
               sumTx += amt;
               txCount++;
-              const dObj = new Date(tx.date);
-              if (!isNaN(dObj)) dailySpending[dObj.toISOString().split('T')[0]] = (dailySpending[dObj.toISOString().split('T')[0]] || 0) + amt;
+              const dateKey = tx.date; 
+if (dateKey) dailySpending[dateKey] = (dailySpending[dateKey] || 0) + amt;
             });
           }
 
@@ -836,12 +837,14 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
       const labels = [], dataPoints = [];
       for (let i = 13; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
-        dataPoints.push(dailySpending[d.toISOString().split('T')[0]] || 0);
-      }
-
+  const d = new Date();
+  d.setDate(d.getDate() - i);
+  labels.push(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+  
+  // Create a local YYYY-MM-DD string
+  const localDateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  dataPoints.push(dailySpending[localDateKey] || 0);
+}
       state.charts.trend = new Chart(document.getElementById('tickerChart').getContext('2d'), {
         type: 'line',
         data: {
@@ -890,7 +893,8 @@ safeListen('saveHistoryBtn', 'click', saveHistoryChanges);
 
       let heatmapHTML = '';
       for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
-        const val = dailySpending[d.toISOString().split('T')[0]] || 0;
+  const localDateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const val = dailySpending[localDateKey] || 0;
         let level = 'level-0';
         if (val > 300) level = 'level-4';
         else if (val > 150) level = 'level-3';
